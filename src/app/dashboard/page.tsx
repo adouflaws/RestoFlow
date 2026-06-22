@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export default async function DashboardRedirect() {
   const supabase = await createClient();
@@ -11,7 +12,7 @@ export default async function DashboardRedirect() {
     redirect("/login");
   }
 
-  const { data: link } = await supabase
+  const { data: link } = await supabaseAdmin
     .from("restaurant_users")
     .select("restaurant_id")
     .eq("user_id", user.id)
