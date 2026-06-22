@@ -23,29 +23,14 @@ export default async function DashboardRedirect() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#f8f9fa] px-6">
-      <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-orange-100">
-          <svg
-            className="h-7 w-7 text-orange-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
-            />
-          </svg>
-        </div>
-        <h1 className="text-lg font-semibold text-gray-900">
+    <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5" }}>
+      <div style={{ textAlign: "center", maxWidth: 400 }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <h1 style={{ color: "#111", fontSize: 18, marginBottom: 8 }}>
           Aucun restaurant configuré
         </h1>
-        <p className="text-[14px] leading-relaxed text-gray-500">
+        <p style={{ color: "#666", fontSize: 14, lineHeight: 1.6 }}>
           Votre compte n&apos;est associé à aucun restaurant.
-          <br />
           Contactez l&apos;administrateur pour être ajouté.
         </p>
       </div>
