@@ -8,20 +8,31 @@ export default async function DashboardRedirect() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log("DASHBOARD - user:", user?.id ?? "NON CONNECTE", user?.email ?? "");
+
   if (!user) {
+    console.log("DASHBOARD - redirect /login (pas de user)");
     redirect("/login");
   }
 
-  const { data: link } = await supabaseAdmin
+  const { data: link, error } = await supabaseAdmin
     .from("restaurant_users")
     .select("restaurant_id")
     .eq("user_id", user.id)
     .limit(1)
     .single();
 
+  console.log("DASHBOARD - link:", JSON.stringify(link));
+  console.log("DASHBOARD - error:", error?.message ?? "aucune");
+  console.log("DASHBOARD - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.slice(0, 30));
+  console.log("DASHBOARD - SERVICE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "présente" : "ABSENTE");
+
   if (link?.restaurant_id) {
+    console.log("DASHBOARD - redirect vers", `/${link.restaurant_id}/commandes`);
     redirect(`/${link.restaurant_id}/commandes`);
   }
+
+  console.log("DASHBOARD - AUCUN RESTAURANT TROUVE");
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", alignItems: "center", justifyContent: "center", backgroundColor: "#f5f5f5" }}>
