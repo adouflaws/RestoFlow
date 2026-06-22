@@ -28,8 +28,10 @@ export default function MenuPage() {
   const apiBase = `/api/restaurants/${restaurantId}/menu`;
 
   async function load() {
+    console.log("MENU - fetch:", apiBase);
     const res = await fetch(apiBase);
     const data = await res.json();
+    console.log("MENU - status:", res.status, "data:", Array.isArray(data) ? data.length + " items" : JSON.stringify(data));
     setItems(Array.isArray(data) ? data : []);
     setLoading(false);
   }

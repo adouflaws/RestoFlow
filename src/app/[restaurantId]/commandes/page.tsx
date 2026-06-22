@@ -50,8 +50,12 @@ export default function CommandesPage() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/commandes?restaurant_id=${restaurantId}`);
+    console.log("COMMANDES - restaurantId:", restaurantId);
+    const url = `/api/commandes?restaurant_id=${restaurantId}`;
+    console.log("COMMANDES - fetch:", url);
+    const res = await fetch(url);
     const data = await res.json();
+    console.log("COMMANDES - status:", res.status, "data:", Array.isArray(data) ? data.length + " items" : JSON.stringify(data));
     if (Array.isArray(data)) setOrders(data);
     setLoading(false);
   }, [restaurantId]);
