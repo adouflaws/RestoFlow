@@ -18,17 +18,22 @@ export default function LoginPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log("LOGIN ATTEMPT:", email);
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      setError("Email ou mot de passe incorrect.");
+      console.error("LOGIN ERROR:", error.message, error.status, JSON.stringify(error));
+      setError("Erreur : " + error.message);
       setLoading(false);
       return;
     }
 
+    console.log("LOGIN OK:", data.user?.id, data.session?.access_token?.slice(0, 20));
     router.push("/dashboard");
     router.refresh();
   }
