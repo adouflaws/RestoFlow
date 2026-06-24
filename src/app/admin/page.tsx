@@ -36,13 +36,22 @@ export default function AdminPage() {
 
   async function toggleStatus(id: string, newStatut: string) {
     setUpdating(id);
-    await fetch(`/api/admin/restaurants/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ statut_abonnement: newStatut }),
-    });
-    await load();
+    try {
+      const res = await fetch(`/api/admin/restaurants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ statut_abonnement: newStatut }),
+      });
+      if (res.ok) {
+        setRestaurants((prev) =>
+          prev.map((r) => r.id === id ? { ...r, statut_abonnement: newStatut } : r)
+        );
+        setUpdating(null);
+        return;
+      }
+    } catch {}
     setUpdating(null);
+    window.location.reload();
   }
 
   if (loading) {

@@ -7,23 +7,28 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { statut_abonnement } = body;
+  const statut_abonnement = body.statut_abonnement;
+
+  console.log("PATCH reçu, id:", id);
+  console.log("body:", JSON.stringify(body));
+  console.log("statut_abonnement:", statut_abonnement);
 
   if (!statut_abonnement || !["actif", "trial", "suspendu"].includes(statut_abonnement)) {
-    return NextResponse.json({ error: "Statut invalide" }, { status: 400 });
+    console.log("REJETÉ - valeur invalide");
+    return NextResponse.json({ error: "Statut invalide", received: body }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin
+  const result = await supabaseAdmin
     .from("restaurants")
     .update({ statut_abonnement })
-    .eq("id", id)
-    .select("id, name, statut_abonnement")
-    .single();
+    .eq("id", id);
 
-  if (error) {
-    console.error("ADMIN PATCH error:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  console.log("résultat Supabase:", JSON.stringify(result));
+
+  if (result.error) {
+    console.error("ERREUR Supabase:", result.error.message, result.error.code, result.error.details);
+    return NextResponse.json({ error: result.error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ ok: true, id, statut_abonnement });
 }
