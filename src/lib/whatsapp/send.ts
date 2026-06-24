@@ -1,6 +1,5 @@
-const BSP_API_URL =
-  process.env.BSP_API_URL ?? "https://graph.facebook.com/v21.0";
-const BSP_API_KEY = process.env.BSP_API_KEY ?? "";
+const META_API_URL = "https://graph.facebook.com/v21.0";
+const META_ACCESS_TOKEN = process.env.META_ACCESS_TOKEN ?? "";
 
 function formatPrice(amount: number): string {
   return Math.round(amount).toLocaleString("fr-FR");
@@ -22,10 +21,10 @@ async function callApi(
   payload: WhatsAppPayload
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${BSP_API_URL}/${phoneNumberId}/messages`, {
+    const res = await fetch(`${META_API_URL}/${phoneNumberId}/messages`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${BSP_API_KEY}`,
+        Authorization: `Bearer ${META_ACCESS_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
@@ -56,11 +55,11 @@ async function getPhoneNumberId(restaurantId: string): Promise<string | null> {
 
   const { data } = await supabaseAdmin
     .from("restaurants")
-    .select("whatsapp_phone_id")
+    .select("whatsapp_phone_number_id")
     .eq("id", restaurantId)
     .single();
 
-  return data?.whatsapp_phone_id ?? null;
+  return data?.whatsapp_phone_number_id ?? null;
 }
 
 // ------------------------------------------------------------------

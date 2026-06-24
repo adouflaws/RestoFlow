@@ -14,11 +14,14 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === process.env.BSP_WEBHOOK_SECRET) {
-    return new Response(challenge, { status: 200 });
+  if (mode === "subscribe" && token === process.env.META_VERIFY_TOKEN && challenge) {
+    return new Response(challenge, {
+      status: 200,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  return new Response("Forbidden", { status: 403 });
 }
 
 // ------------------------------------------------------------------
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest) {
   const { data: restaurant } = await supabaseAdmin
     .from("restaurants")
     .select("id, is_active")
-    .eq("whatsapp_phone_id", phoneNumberId)
+    .eq("whatsapp_phone_number_id", phoneNumberId)
     .single();
 
   if (!restaurant || !restaurant.is_active) return ok();
@@ -102,7 +105,7 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.BSP_API_KEY}`,
+      Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}`,
     },
     body: JSON.stringify({
       restaurant_id: restaurant.id,
@@ -123,7 +126,7 @@ export async function POST(req: NextRequest) {
 // ------------------------------------------------------------------
 
 function verifyHmac(rawBody: string, header: string): boolean {
-  const secret = process.env.BSP_WEBHOOK_SECRET!;
+  const secret = process.env.META_VERIFY_TOKEN!;
   const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
   const received = header.replace("sha256=", "");
 

@@ -55,7 +55,7 @@ interface HistoryEntry {
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.BSP_API_KEY}`) {
+  if (auth !== `Bearer ${process.env.META_ACCESS_TOKEN}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
