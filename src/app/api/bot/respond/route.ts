@@ -545,14 +545,26 @@ async function handleHorsCadre(
 ): Promise<string> {
   await supabaseAdmin.from("conversations").update({ status: "open" }).eq("id", conversationId);
 
-  await notifyManager(
-    restaurantId,
-    customerName,
-    customerPhone,
-    message
-  );
+  // Récupère le numéro WhatsApp du gérant depuis restaurants.phone
+  const { data: resto } = await supabaseAdmin
+    .from("restaurants")
+    .select("phone")
+    .eq("id", restaurantId)
+    .single();
 
-  return "Merci pour votre message. Je le transmets à l'équipe du restaurant qui vous répondra très vite. Bonne journée !";
+  if (resto?.phone) {
+    const managerMsg =
+      `Un client a besoin de vous ! 📱\n\n` +
+      `Numéro client : ${customerPhone}\n\n` +
+      `Dernier message : ${message}\n\n` +
+      `Répondez directement à ce numéro pour prendre en charge.`;
+
+    await waSendMessage(resto.phone, managerMsg, restaurantId);
+  }
+
+  await notifyManager(restaurantId, customerName, customerPhone, message);
+
+  return "Je transmets votre message à notre équipe. Un membre de notre staff va vous répondre dans quelques minutes. Merci de votre patience 🙏";
 }
 
 // ------------------------------------------------------------------
