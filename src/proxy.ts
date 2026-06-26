@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const ADMIN_EMAIL = "adouflaws@gmail.com";
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -37,13 +37,15 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Routes publiques — toujours accessibles
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
   if (
     pathname.startsWith("/api") ||
     pathname.startsWith("/auth") ||
     pathname === "/" ||
-    pathname.startsWith("/login")
+    isAuthPage
   ) {
-    if (user && pathname.startsWith("/login")) {
+    // Utilisateur déjà connecté → dashboard
+    if (user && isAuthPage) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

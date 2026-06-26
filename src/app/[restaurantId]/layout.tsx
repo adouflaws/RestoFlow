@@ -5,7 +5,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 
-const ADMIN_EMAIL = "adouflaws@gmail.com";
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
 
 const NAV = [
   { label: "Commandes", href: "commandes" },
