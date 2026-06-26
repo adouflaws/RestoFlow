@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
     }
 
-    conversationRes = { data: newConv, error: null };
+    conversationRes = { data: newConv, error: null } as any;
   }
 
   const conversation = conversationRes.data;
