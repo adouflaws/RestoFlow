@@ -139,6 +139,17 @@ export async function POST(req: NextRequest) {
     .map((m) => `${m.name} (${m.category}) — ${m.price} FCFA`)
     .join(", ");
 
+  // ----- Vérification des horaires d'ouverture -----
+
+  const hoursResult = checkOpeningHours(
+    restaurant.opening_hours as Record<string, string> | null
+  );
+  if (!hoursResult.open) {
+    await saveExchange(conversation.id, meta, message, hoursResult.closedMessage);
+    await waSendMessage(customer_phone, hoursResult.closedMessage, restaurant_id);
+    return NextResponse.json({ ok: true });
+  }
+
   // ----- Étape 4 : réponse quartier (livraison) -----
 
   if (meta.commande_draft && meta.attente_quartier) {
@@ -644,6 +655,76 @@ async function clearDraft(
   delete meta.attente_quartier;
   delete meta.mode_paiement_choisi;
   await saveMeta(conversationId, meta);
+}
+
+// ------------------------------------------------------------------
+// Vérification des horaires (fuseau Afrique/Bamako = UTC+0)
+// ------------------------------------------------------------------
+
+const DAYS_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+
+function slotOpenTime(slot: string): string {
+  return slot.split("-")[0].trim();
+}
+
+function parseSlotMinutes(slot: string): { openMin: number; closeMin: number } | null {
+  const parts = slot.split("-");
+  if (parts.length !== 2) return null;
+  const [oh, om] = parts[0].trim().split(":").map(Number);
+  const [ch, cm] = parts[1].trim().split(":").map(Number);
+  if ([oh, om, ch, cm].some(isNaN)) return null;
+  return { openMin: oh * 60 + om, closeMin: ch * 60 + cm };
+}
+
+function checkOpeningHours(
+  openingHours: Record<string, string> | null
+): { open: true } | { open: false; closedMessage: string } {
+  if (!openingHours || Object.keys(openingHours).length === 0) {
+    return { open: true };
+  }
+
+  const now = new Date();
+  // Africa/Bamako = UTC+0, même offset que UTC, pas de DST
+  const utcDay = now.getUTCDay(); // 0=dimanche … 6=samedi
+  const currentDay = DAYS_FR[utcDay];
+  const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+
+  const todaySlot = openingHours[currentDay];
+  if (todaySlot) {
+    const parsed = parseSlotMinutes(todaySlot);
+    if (parsed) {
+      // Actuellement ouvert
+      if (currentMinutes >= parsed.openMin && currentMinutes < parsed.closeMin) {
+        return { open: true };
+      }
+      // Pas encore ouvert aujourd'hui
+      if (currentMinutes < parsed.openMin) {
+        return {
+          open: false,
+          closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons aujourd'hui à ${slotOpenTime(todaySlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊`,
+        };
+      }
+    }
+  }
+
+  // Cherche la prochaine ouverture dans les 7 prochains jours
+  for (let i = 1; i <= 7; i++) {
+    const nextDay = DAYS_FR[(utcDay + i) % 7];
+    const nextSlot = openingHours[nextDay];
+    if (nextSlot && parseSlotMinutes(nextSlot)) {
+      const dayLabel = i === 1 ? "demain" : nextDay;
+      return {
+        open: false,
+        closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons ${dayLabel} à ${slotOpenTime(nextSlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊`,
+      };
+    }
+  }
+
+  return {
+    open: false,
+    closedMessage:
+      "Bonjour ! Nous sommes actuellement fermés. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊",
+  };
 }
 
 async function notifyManager(
