@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+const ADMIN_EMAIL = "adouflaws@gmail.com";
 
 const NAV = [
   { label: "Commandes", href: "commandes" },
@@ -16,8 +18,16 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const pathname = usePathname();
   const router = useRouter();
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const restaurantId = params.restaurantId as string;
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email === ADMIN_EMAIL) setIsAdmin(true);
+    });
+  }, []);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -73,6 +83,29 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
             );
           })}
         </nav>
+
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onMouseEnter={() => setHoveredLink("admin")}
+            onMouseLeave={() => setHoveredLink(null)}
+            style={{
+              color: "rgba(255,255,255,0.5)",
+              textDecoration: "none",
+              padding: "10px 12px",
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              backgroundColor: hoveredLink === "admin" ? "rgba(255,255,255,0.08)" : "transparent",
+              transition: "background-color 0.15s",
+              marginBottom: 4,
+            }}
+          >
+            ⚙ Super Admin
+          </Link>
+        )}
 
         <button
           onClick={handleLogout}
