@@ -28,6 +28,17 @@ export default async function DashboardRedirect() {
   console.log("DASHBOARD - SERVICE_KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "présente" : "ABSENTE");
 
   if (link?.restaurant_id) {
+    const { data: resto } = await supabaseAdmin
+      .from("restaurants")
+      .select("onboarding_completed")
+      .eq("id", link.restaurant_id)
+      .single();
+
+    if (!resto?.onboarding_completed) {
+      console.log("DASHBOARD - onboarding non complété, redirect");
+      redirect(`/${link.restaurant_id}/onboarding`);
+    }
+
     console.log("DASHBOARD - redirect vers", `/${link.restaurant_id}/commandes`);
     redirect(`/${link.restaurant_id}/commandes`);
   }
