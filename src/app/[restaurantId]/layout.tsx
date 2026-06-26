@@ -5,8 +5,6 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
-
 const NAV = [
   { label: "Commandes", href: "commandes" },
   { label: "Menu", href: "menu" },
@@ -23,9 +21,18 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const restaurantId = params.restaurantId as string;
 
   useEffect(() => {
+    // Lu à l'intérieur du composant pour garantir la valeur bundlée au build
+    const adminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
+    // Si la variable n'est pas configurée, personne n'est admin
+    if (!adminEmail) return;
+
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.email === ADMIN_EMAIL) setIsAdmin(true);
+      const userEmail = data.user?.email;
+      // Double garde : les deux doivent être définis et identiques
+      if (userEmail && userEmail === adminEmail) {
+        setIsAdmin(true);
+      }
     });
   }, []);
 
