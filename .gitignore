@@ -47,3 +47,5 @@ next-env.d.ts
 *.jpg
 *.pdf
 Audit_BTP_Mali.html
+
+.vercel
