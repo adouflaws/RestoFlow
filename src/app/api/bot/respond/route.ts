@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   // ----- Trouver ou créer la conversation -----
 
-  let conversationRes = await supabaseAdmin
+  const { data: existingConv } = await supabaseAdmin
     .from("conversations")
     .select("id, metadata")
     .eq("restaurant_id", restaurant_id)
@@ -101,7 +101,9 @@ export async function POST(req: NextRequest) {
     .limit(1)
     .maybeSingle();
 
-  if (!conversationRes.data) {
+  let conversationData: { id: string; metadata: unknown } | null = existingConv;
+
+  if (!conversationData) {
     const { data: newConv, error: createError } = await supabaseAdmin
       .from("conversations")
       .insert({
@@ -119,10 +121,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
     }
 
-    conversationRes = { data: newConv, error: null } as any;
+    conversationData = newConv;
   }
 
-  const conversation = conversationRes.data;
+  const conversation = conversationData!;
 
   const meta: ConversationMeta =
     (conversation.metadata as ConversationMeta) ?? {};
