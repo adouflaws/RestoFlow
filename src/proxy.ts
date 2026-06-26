@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const ADMIN_EMAIL = "adouflaws@gmail.com";
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -28,13 +30,46 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Routes publiques — toujours accessibles
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth") ||
+    pathname === "/" ||
+    pathname.startsWith("/login")
+  ) {
+    if (user && pathname.startsWith("/login")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return supabaseResponse;
+  }
+
+  // Non connecté → login
+  if (!user) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // /admin → réservé à l'admin
+  if (pathname.startsWith("/admin") && user.email !== ADMIN_EMAIL) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/|auth/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico).*)",
   ],
 };
