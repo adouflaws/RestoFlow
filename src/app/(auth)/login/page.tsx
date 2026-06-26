@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,11 +11,32 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.log("ANON KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "présente" : "absente");
   }, []);
+
+  async function handleForgotPassword() {
+    if (!email) {
+      setError("Saisissez votre adresse email avant de réinitialiser le mot de passe.");
+      return;
+    }
+    setError("");
+    setResetLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    });
+    setResetLoading(false);
+    if (error) {
+      setError("Erreur : " + error.message);
+    } else {
+      setResetSent(true);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -137,9 +158,11 @@ export default function LoginPage() {
                 </label>
                 <button
                   type="button"
-                  className="text-[12px] font-medium text-[#1a4d2e] hover:text-[#246b3e] transition-colors"
+                  onClick={handleForgotPassword}
+                  disabled={resetLoading}
+                  className="text-[12px] font-medium text-[#1a4d2e] hover:text-[#246b3e] transition-colors disabled:opacity-50"
                 >
-                  Mot de passe oublié ?
+                  {resetLoading ? "Envoi..." : "Mot de passe oublié ?"}
                 </button>
               </div>
               <input
@@ -158,6 +181,13 @@ export default function LoginPage() {
               <div className="flex items-center gap-2.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-[13px] text-red-700">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {resetSent && (
+              <div className="flex items-center gap-2.5 rounded-lg border border-green-200 bg-green-50 px-3.5 py-3 text-[13px] text-green-700">
+                <CheckCircle className="h-4 w-4 shrink-0" />
+                <span>Email de réinitialisation envoyé !</span>
               </div>
             )}
 
