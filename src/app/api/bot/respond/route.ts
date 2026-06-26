@@ -20,10 +20,10 @@ const anthropic = new Anthropic();
 
 interface RequestBody {
   restaurant_id: string;
-  conversation_id: string;
-  phone_number_id: string;
+  conversation_id?: string;
+  phone_number_id?: string;
   customer_phone: string;
-  customer_name: string;
+  customer_name?: string;
   message: string;
   message_type: string;
 }
@@ -62,16 +62,14 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as RequestBody;
   const {
     restaurant_id,
-    conversation_id,
-    phone_number_id,
     customer_phone,
-    customer_name,
+    customer_name = "Client",
     message,
   } = body;
 
-  // ----- Charger restaurant + menu + conversation en parallèle -----
+  // ----- Charger restaurant + menu en parallèle -----
 
-  const [restaurantRes, menuRes, conversationRes] = await Promise.all([
+  const [restaurantRes, menuRes] = await Promise.all([
     supabaseAdmin
       .from("restaurants")
       .select("name, address, phone, opening_hours, social_links")
@@ -82,20 +80,49 @@ export async function POST(req: NextRequest) {
       .select("id, name, price, category, is_available")
       .eq("restaurant_id", restaurant_id)
       .eq("is_available", true),
-    supabaseAdmin
-      .from("conversations")
-      .select("id, metadata")
-      .eq("id", conversation_id)
-      .single(),
   ]);
 
   const restaurant = restaurantRes.data;
   const menuItems = (menuRes.data ?? []) as MenuItem[];
-  const conversation = conversationRes.data;
 
-  if (!restaurant || !conversation) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!restaurant) {
+    return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
   }
+
+  // ----- Trouver ou créer la conversation -----
+
+  let conversationRes = await supabaseAdmin
+    .from("conversations")
+    .select("id, metadata")
+    .eq("restaurant_id", restaurant_id)
+    .eq("customer_phone", customer_phone)
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!conversationRes.data) {
+    const { data: newConv, error: createError } = await supabaseAdmin
+      .from("conversations")
+      .insert({
+        restaurant_id,
+        customer_phone,
+        customer_name,
+        channel: "whatsapp",
+        status: "open",
+        metadata: { historique: [] },
+      })
+      .select("id, metadata")
+      .single();
+
+    if (createError || !newConv) {
+      return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
+    }
+
+    conversationRes = { data: newConv, error: null };
+  }
+
+  const conversation = conversationRes.data;
 
   const meta: ConversationMeta =
     (conversation.metadata as ConversationMeta) ?? {};
@@ -119,12 +146,12 @@ export async function POST(req: NextRequest) {
       meta.commande_draft,
       meta.mode_paiement_choisi ?? "especes",
       restaurant_id,
-      conversation_id,
+      conversation.id,
       customer_name,
       customer_phone,
       meta
     );
-    await saveExchange(conversation_id, meta, message, reply);
+    await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
@@ -138,11 +165,11 @@ export async function POST(req: NextRequest) {
       meta.attente_paiement = false;
       meta.attente_quartier = true;
       meta.mode_paiement_choisi = "mobile_money";
-      await saveMeta(conversation_id, meta);
+      await saveMeta(conversation.id, meta);
       const reply =
         "Dans quel quartier souhaitez-vous être livré ?\n\n" +
         "Envoyez le nom de votre quartier (ex: Hamdallaye, Badalabougou, ACI 2000...)";
-      await saveExchange(conversation_id, meta, message, reply);
+      await saveExchange(conversation.id, meta, message, reply);
       await waSendMessage(customer_phone, reply, restaurant_id);
       return NextResponse.json({ ok: true });
     }
@@ -151,11 +178,11 @@ export async function POST(req: NextRequest) {
       meta.attente_paiement = false;
       meta.attente_quartier = true;
       meta.mode_paiement_choisi = "especes";
-      await saveMeta(conversation_id, meta);
+      await saveMeta(conversation.id, meta);
       const reply =
         "Dans quel quartier souhaitez-vous être livré ?\n\n" +
         "Envoyez le nom de votre quartier (ex: Hamdallaye, Badalabougou, ACI 2000...)";
-      await saveExchange(conversation_id, meta, message, reply);
+      await saveExchange(conversation.id, meta, message, reply);
       await waSendMessage(customer_phone, reply, restaurant_id);
       return NextResponse.json({ ok: true });
     }
@@ -164,14 +191,14 @@ export async function POST(req: NextRequest) {
       const reply = await createOrder(
         meta.commande_draft,
         restaurant_id,
-        conversation_id,
+        conversation.id,
         customer_name,
         customer_phone,
         "especes",
         null
       );
-      await clearDraft(conversation_id, meta);
-      await saveExchange(conversation_id, meta, message, reply);
+      await clearDraft(conversation.id, meta);
+      await saveExchange(conversation.id, meta, message, reply);
       await waSendMessage(customer_phone, reply, restaurant_id);
       return NextResponse.json({ ok: true });
     }
@@ -181,7 +208,7 @@ export async function POST(req: NextRequest) {
       "1️⃣ Orange Money ou Wave (livraison)\n" +
       "2️⃣ Espèces à la livraison\n" +
       "3️⃣ Espèces sur place";
-    await saveExchange(conversation_id, meta, message, reply);
+    await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
@@ -190,23 +217,23 @@ export async function POST(req: NextRequest) {
 
   if (meta.commande_draft && isConfirmation(message)) {
     meta.attente_paiement = true;
-    await saveMeta(conversation_id, meta);
+    await saveMeta(conversation.id, meta);
 
     const reply =
       "✅ Commande confirmée ! Comment souhaitez-vous payer ?\n\n" +
       "1️⃣ Orange Money ou Wave (livraison)\n" +
       "2️⃣ Espèces à la livraison\n" +
       "3️⃣ Espèces sur place";
-    await saveExchange(conversation_id, meta, message, reply);
+    await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
   if (meta.commande_draft && isRejection(message)) {
-    await clearDraft(conversation_id, meta);
+    await clearDraft(conversation.id, meta);
     const reply =
       "Pas de souci ! Votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez 😊";
-    await saveExchange(conversation_id, meta, message, reply);
+    await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
@@ -233,9 +260,9 @@ export async function POST(req: NextRequest) {
       break;
 
     case "commande": {
-      const result = await handleCommande(message, menuItems, conversation_id, meta);
+      const result = await handleCommande(message, menuItems, conversation.id, meta);
       if (result.hasItems) {
-        await saveExchange(conversation_id, meta, message, result.reply);
+        await saveExchange(conversation.id, meta, message, result.reply);
         await waSendConfirmation(
           customer_phone,
           result.reply,
@@ -251,7 +278,7 @@ export async function POST(req: NextRequest) {
     case "hors_cadre":
       reply = await handleHorsCadre(
         restaurant_id,
-        conversation_id,
+        conversation.id,
         customer_name,
         customer_phone,
         message
@@ -259,7 +286,7 @@ export async function POST(req: NextRequest) {
       break;
   }
 
-  await saveExchange(conversation_id, meta, message, reply);
+  await saveExchange(conversation.id, meta, message, reply);
   await waSendMessage(customer_phone, reply, restaurant_id);
 
   return NextResponse.json({ ok: true });
