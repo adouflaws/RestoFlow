@@ -121,7 +121,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
           {restoName && (
             <div style={{
-              fontSize: 11.5, color: "rgba(255,255,255,0.38)",
+              fontSize: 12, fontWeight: 500, color: "#ffffff",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
               paddingLeft: 2,
             }}>
