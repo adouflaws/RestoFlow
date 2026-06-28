@@ -338,7 +338,7 @@ export default function ConfigPage() {
               Ces actions sont irréversibles et nécessitent une confirmation manuelle.
             </p>
             <a
-              href="mailto:support@restoflow.co?subject=Demande suppression compte"
+              href="mailto:adouflaws@gmail.com?subject=Demande suppression compte"
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
                 backgroundColor: "#fef2f2", color: "#dc2626",
