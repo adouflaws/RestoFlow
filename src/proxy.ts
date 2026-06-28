@@ -36,37 +36,46 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Routes publiques — toujours accessibles
-  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
-  if (
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/auth") ||
+  // Routes publiques — toujours accessibles sans session
+  const isPublic =
     pathname === "/" ||
-    isAuthPage
-  ) {
-    // Utilisateur déjà connecté → dashboard
-    if (user && isAuthPage) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
-    }
-    return supabaseResponse;
-  }
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth");
 
-  // Non connecté → login
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  // Routes qui exigent une session authentifiée
+  // /dashboard, /admin, et /[restaurantId]/... (UUID v4)
+  const UUID_RE = /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(\/|$)/i;
+  const requiresAuth =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/admin") ||
+    UUID_RE.test(pathname);
 
-  // /admin → réservé à l'admin
-  if (pathname.startsWith("/admin") && user.email !== ADMIN_EMAIL) {
+  // Utilisateur déjà connecté sur /login ou /signup → dashboard
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
+  if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 
+  // Non connecté sur une route protégée → login
+  if (!user && requiresAuth) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // /admin réservé à l'admin
+  if (pathname.startsWith("/admin") && user && user.email !== ADMIN_EMAIL) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  // Routes publiques et routes inconnues → laisser passer
+  void isPublic;
   return supabaseResponse;
 }
 
