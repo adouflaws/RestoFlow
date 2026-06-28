@@ -7,13 +7,8 @@ export default function SuspenduPage() {
   const params = useParams();
   const restaurantId = params.restaurantId as string;
 
-  const mailtoContact =
-    "mailto:adouflaws@gmail.com?subject=" +
-    encodeURIComponent("Réactivation abonnement RestoFlow") +
-    "&body=" +
-    encodeURIComponent(
-      "Bonjour,\n\nJe souhaite réactiver mon abonnement RestoFlow.\n\nMerci de me contacter rapidement.\n\nCordialement"
-    );
+  const WA_LINK =
+    "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20r%C3%A9activer%20mon%20abonnement%20pour%20mon%20restaurant.";
 
   return (
     <div style={{
@@ -70,7 +65,9 @@ export default function SuspenduPage() {
 
         {/* Bouton principal */}
         <a
-          href={mailtoContact}
+          href={WA_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
             display: "block",
             backgroundColor: "#1a4d2e",
@@ -85,7 +82,7 @@ export default function SuspenduPage() {
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#16a34a")}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#1a4d2e")}
         >
-          📧 Contacter RestoFlow
+          💬 Contacter RestoFlow sur WhatsApp
         </a>
 
         {/* Lien retour */}
@@ -106,7 +103,7 @@ export default function SuspenduPage() {
           borderTop: "1px solid #f1f5f9",
         }}>
           <p style={{ fontSize: 12, color: "#cbd5e1", margin: 0 }}>
-            adouflaws@gmail.com · RestoFlow
+            wa.me/22376753087 · RestoFlow
           </p>
         </div>
       </div>

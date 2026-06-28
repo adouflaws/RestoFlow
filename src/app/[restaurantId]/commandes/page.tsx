@@ -392,11 +392,8 @@ export default function CommandesPage() {
   const showRedBanner =
     (statut === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0) ||
     statut === "suspendu";
-  const mailtoUpgrade = `mailto:adouflaws@gmail.com?subject=${encodeURIComponent(
-    `Passer en compte actif — ${restoName}`
-  )}&body=${encodeURIComponent(
-    `Bonjour,\n\nJe souhaite passer mon restaurant "${restoName}" en compte actif RestoFlow.\n\nMerci de me contacter.\n\nCordialement`
-  )}`;
+  const WA_LINK =
+    "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20r%C3%A9activer%20mon%20abonnement%20pour%20mon%20restaurant.";
 
   // ── Delta helper ──────────────────────────────────────────────────────
   function Delta({ today, yest }: { today: number; yest: number }) {
@@ -553,7 +550,9 @@ export default function CommandesPage() {
             </div>
           </div>
           <a
-            href={mailtoUpgrade}
+            href={WA_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
               backgroundColor: "#c2410c", color: "#fff",
@@ -561,7 +560,7 @@ export default function CommandesPage() {
               fontSize: 13, fontWeight: 700, textDecoration: "none",
             }}
           >
-            Passer en compte actif →
+            💬 Passer en compte actif
           </a>
         </div>
       )}
@@ -586,7 +585,9 @@ export default function CommandesPage() {
             </div>
           </div>
           <a
-            href="mailto:adouflaws@gmail.com?subject=R%C3%A9activation%20abonnement%20RestoFlow"
+            href={WA_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
               backgroundColor: "#dc2626", color: "#fff",
@@ -594,7 +595,7 @@ export default function CommandesPage() {
               fontSize: 13, fontWeight: 700, textDecoration: "none",
             }}
           >
-            Contacter RestoFlow →
+            💬 Contacter RestoFlow
           </a>
         </div>
       )}
