@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -6,6 +7,9 @@ export async function GET(req: NextRequest) {
   if (!restaurantId) {
     return NextResponse.json({ error: "restaurant_id requis" }, { status: 400 });
   }
+
+  const auth = await requireRestaurantAccess(restaurantId);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await supabaseAdmin
     .from("orders")

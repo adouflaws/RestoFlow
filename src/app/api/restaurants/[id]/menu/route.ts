@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -6,6 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const auth = await requireRestaurantAccess(id);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await supabaseAdmin
     .from("menu_items")
@@ -23,8 +27,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await req.json();
 
+  const auth = await requireRestaurantAccess(id);
+  if (!auth.ok) return auth.response;
+
+  const body = await req.json();
   const { data, error } = await supabaseAdmin
     .from("menu_items")
     .insert({
@@ -47,6 +54,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+
+  const auth = await requireRestaurantAccess(id);
+  if (!auth.ok) return auth.response;
+
   const body = await req.json();
   const { item_id, ...fields } = body;
 

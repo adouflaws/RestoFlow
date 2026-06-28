@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
 
 export async function GET(req: NextRequest) {
   const restaurantId = req.nextUrl.searchParams.get("restaurant_id");
   if (!restaurantId) return NextResponse.json({ error: "restaurant_id requis" }, { status: 400 });
+
+  const auth = await requireRestaurantAccess(restaurantId);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await supabaseAdmin
     .from("zones_livraison")
@@ -22,6 +26,9 @@ export async function POST(req: NextRequest) {
   if (!restaurant_id || !nom_zone) {
     return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
   }
+
+  const auth = await requireRestaurantAccess(restaurant_id);
+  if (!auth.ok) return auth.response;
 
   const { data, error } = await supabaseAdmin
     .from("zones_livraison")

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/supabase/server-auth";
 
 export async function GET() {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
+
   const { data: rows, error: selectError } = await supabaseAdmin
     .from("restaurants")
     .select("*")
@@ -13,7 +17,6 @@ export async function GET() {
     query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'restaurants' ORDER BY ordinal_position"
   }).maybeSingle();
 
-  // Try notify to reload cache
   await supabaseAdmin.rpc("pg_notify", { channel: "pgrst", payload: "reload schema" }).maybeSingle();
 
   return NextResponse.json({

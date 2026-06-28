@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -12,6 +13,9 @@ export async function POST(req: NextRequest) {
   if (!restaurantId || !step) {
     return NextResponse.json({ error: "restaurantId et step requis" }, { status: 400 });
   }
+
+  const auth = await requireRestaurantAccess(restaurantId);
+  if (!auth.ok) return auth.response;
 
   try {
     if (step === 2) {

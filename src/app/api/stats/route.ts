@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
 
 export async function GET(req: NextRequest) {
   const restaurantId = req.nextUrl.searchParams.get("restaurant_id");
   if (!restaurantId) return NextResponse.json({ error: "restaurant_id requis" }, { status: 400 });
+
+  const auth = await requireRestaurantAccess(restaurantId);
+  if (!auth.ok) return auth.response;
 
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();

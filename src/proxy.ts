@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
 
@@ -72,6 +73,23 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  // Vérification d'appartenance pour les pages [restaurantId] (pas les routes /api)
+  // Un utilisateur connecté ne peut pas naviguer vers le dashboard d'un restaurant qui ne lui appartient pas
+  if (user && UUID_RE.test(pathname) && !pathname.startsWith("/api/")) {
+    const restaurantId = pathname.split("/")[1];
+    const { data: membership } = await supabaseAdmin
+      .from("restaurant_users")
+      .select("restaurant_id")
+      .eq("restaurant_id", restaurantId)
+      .eq("user_id", user.id)
+      .single();
+    if (!membership) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
   }
 
   // Routes publiques et routes inconnues → laisser passer

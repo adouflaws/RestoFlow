@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAuth } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
 
 function slugify(name: string): string {
@@ -16,6 +17,10 @@ function slugify(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Vérifie que l'utilisateur est connecté
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+
   const body = await req.json();
   const { user_id, nom_restaurant, whatsapp_numero } = body as {
     user_id: string;
@@ -25,6 +30,11 @@ export async function POST(req: NextRequest) {
 
   if (!user_id || !nom_restaurant) {
     return NextResponse.json({ error: "user_id et nom_restaurant requis" }, { status: 400 });
+  }
+
+  // Vérifie que le user_id fourni correspond bien à l'utilisateur connecté
+  if (auth.userId !== user_id) {
+    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
   }
 
   // Crée le restaurant
@@ -58,7 +68,6 @@ export async function POST(req: NextRequest) {
     });
 
   if (linkError) {
-    // Nettoie le restaurant si le lien échoue
     await supabaseAdmin.from("restaurants").delete().eq("id", restaurant.id);
     return NextResponse.json({ error: linkError.message }, { status: 500 });
   }
