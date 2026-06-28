@@ -9,8 +9,9 @@ const SIDEBAR_W = 260;
 const BG_DARK = "#0f172a";
 
 const NAV = [
-  { label: "Commandes",          href: "commandes", icon: "📦" },
-  { label: "Menu",               href: "menu",      icon: "🍽️" },
+  { label: "Commandes",          href: "commandes",     icon: "📦" },
+  { label: "Conversations",      href: "conversations", icon: "💬" },
+  { label: "Menu",               href: "menu",          icon: "🍽️" },
   { label: "Zones de livraison", href: "zones",     icon: "🗺️" },
   { label: "Configuration",      href: "config",    icon: "⚙️" },
   { label: "Statistiques",       href: "stats",     icon: "📊" },
