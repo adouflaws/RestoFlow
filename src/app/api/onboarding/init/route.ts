@@ -1,5 +1,5 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/supabase/server-auth";
+﻿import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireAuth } from "@/lib/auth/guards";
 import { NextRequest, NextResponse } from "next/server";
 
 function slugify(name: string): string {
@@ -7,7 +7,7 @@ function slugify(name: string): string {
     name
       .toLowerCase()
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
+      .replace(/[Ì€-Í¯]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 48) +
@@ -17,7 +17,7 @@ function slugify(name: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  // Vérifie que l'utilisateur est connecté
+  // VÃ©rifie que l'utilisateur est connectÃ©
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "user_id et nom_restaurant requis" }, { status: 400 });
   }
 
-  // Vérifie que le user_id fourni correspond bien à l'utilisateur connecté
+  // VÃ©rifie que le user_id fourni correspond bien Ã  l'utilisateur connectÃ©
   if (auth.userId !== user_id) {
-    return NextResponse.json({ error: "Non autorisé" }, { status: 403 });
+    return NextResponse.json({ error: "Non autorisÃ©" }, { status: 403 });
   }
 
-  // Crée le restaurant
+  // CrÃ©e le restaurant
   const { data: restaurant, error: restError } = await supabaseAdmin
     .from("restaurants")
     .insert({
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   if (restError || !restaurant) {
     return NextResponse.json(
-      { error: restError?.message ?? "Impossible de créer le restaurant" },
+      { error: restError?.message ?? "Impossible de crÃ©er le restaurant" },
       { status: 500 }
     );
   }

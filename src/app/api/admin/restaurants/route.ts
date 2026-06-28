@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/supabase/server-auth";
+import { requireAdmin } from "@/lib/auth/guards";
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -68,5 +68,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: linkError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ id: restaurant.id, message: "Restaurant créé" }, { status: 201 });
+  return NextResponse.json({ id: restaurant.id, message: "Restaurant crÃ©Ã©" }, { status: 201 });
 }

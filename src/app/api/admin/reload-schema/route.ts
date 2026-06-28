@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { requireAdmin } from "@/lib/supabase/server-auth";
+import { requireAdmin } from "@/lib/auth/guards";
 
 export async function POST() {
   const auth = await requireAdmin();
@@ -16,7 +16,7 @@ export async function POST() {
   if (error) {
     const { error: notifyError } = await supabase.from("restaurants").select("id").limit(0);
     return NextResponse.json({
-      message: "RPC failed, try reloading manually in Supabase Dashboard → Settings → API",
+      message: "RPC failed, try reloading manually in Supabase Dashboard â†’ Settings â†’ API",
       rpc_error: error.message,
       fallback_error: notifyError?.message,
     }, { status: 500 });

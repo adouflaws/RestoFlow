@@ -1,5 +1,5 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
+﻿import { supabaseAdmin } from "@/lib/supabase/admin";
+import { requireRestaurantAccess } from "@/lib/auth/guards";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {

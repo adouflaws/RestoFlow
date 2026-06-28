@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
+import { requireRestaurantAccess } from "@/lib/auth/guards";
 import { sendMessage } from "@/lib/whatsapp/send";
 import { NextRequest, NextResponse } from "next/server";
 

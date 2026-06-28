@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
+import { requireRestaurantAccess } from "@/lib/auth/guards";
 
 async function getZoneRestaurantId(id: string): Promise<string | null> {
   const { data } = await supabaseAdmin

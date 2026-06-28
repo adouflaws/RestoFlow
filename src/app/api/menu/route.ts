@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { requireRestaurantAccess } from "@/lib/supabase/server-auth";
+import { requireRestaurantAccess } from "@/lib/auth/guards";
 
 export async function GET(req: NextRequest) {
   const restaurantId = req.nextUrl.searchParams.get("restaurant_id");
@@ -58,7 +58,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "id requis" }, { status: 400 });
   }
 
-  // Récupère le restaurant_id de l'item pour vérifier l'accès
+  // RÃ©cupÃ¨re le restaurant_id de l'item pour vÃ©rifier l'accÃ¨s
   const { data: item } = await supabaseAdmin
     .from("menu_items")
     .select("restaurant_id")

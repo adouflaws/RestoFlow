@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "./admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { User } from "@supabase/supabase-js";
 
 async function getAuthUser(): Promise<User | null> {
@@ -18,7 +18,7 @@ async function getAuthUser(): Promise<User | null> {
 type AuthOk   = { ok: true;  userId: string; email: string };
 type AuthFail = { ok: false; response: NextResponse };
 
-/** Connecté + membre du restaurant. */
+/** Connecté + membre du restaurant demandé. */
 export async function requireRestaurantAccess(
   restaurantId: string
 ): Promise<AuthOk | AuthFail> {
@@ -38,7 +38,7 @@ export async function requireRestaurantAccess(
   return { ok: true, userId: user.id, email: user.email ?? "" };
 }
 
-/** Connecté seulement (pas de vérification restaurant). */
+/** Connecté seulement (sans vérification de restaurant). */
 export async function requireAuth(): Promise<AuthOk | AuthFail> {
   const user = await getAuthUser();
   if (!user) {
@@ -47,7 +47,7 @@ export async function requireAuth(): Promise<AuthOk | AuthFail> {
   return { ok: true, userId: user.id, email: user.email ?? "" };
 }
 
-/** Connecté + email = NEXT_PUBLIC_SUPER_ADMIN_EMAIL. */
+/** Connecté + email correspond à NEXT_PUBLIC_SUPER_ADMIN_EMAIL. */
 export async function requireAdmin(): Promise<AuthOk | AuthFail> {
   const user = await getAuthUser();
   if (!user) {
