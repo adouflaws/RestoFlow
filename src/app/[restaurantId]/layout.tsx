@@ -28,6 +28,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const [isAdmin,      setIsAdmin]      = useState(false);
   const [userInfo,     setUserInfo]     = useState<{ email: string; name: string } | null>(null);
   const [restoName,    setRestoName]    = useState("");
+  const [restoPlan,    setRestoPlan]    = useState("starter");
   const [pendingCount, setPendingCount] = useState(0);
 
   // ── Chargement user + restaurant ──────────────────────────────────────
@@ -46,11 +47,12 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
     supabase
       .from("restaurants")
-      .select("name, statut_abonnement")
+      .select("name, statut_abonnement, plan")
       .eq("id", restaurantId)
       .single()
       .then(({ data }) => {
         if (data?.name) setRestoName(data.name);
+        if ((data as { plan?: string } | null)?.plan) setRestoPlan((data as { plan?: string }).plan!);
         if (
           (data as { statut_abonnement?: string } | null)?.statut_abonnement === "suspendu" &&
           !pathname.endsWith("/suspendu")
@@ -120,12 +122,20 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
               RestoFlow
             </span>
             <span style={{
-              backgroundColor: "#16a34a", color: "#fff",
+              backgroundColor:
+                restoPlan === "business" ? "#d97706"
+                : restoPlan === "pro"     ? "#16a34a"
+                : restoPlan === "trial"   ? "#3b82f6"
+                :                          "#64748b",
+              color: "#fff",
               fontSize: 9, fontWeight: 800, padding: "2px 5px",
               borderRadius: 4, letterSpacing: "0.06em", textTransform: "uppercase" as const,
               flexShrink: 0,
             }}>
-              PRO
+              {restoPlan === "business" ? "BUSINESS"
+                : restoPlan === "pro"   ? "PRO"
+                : restoPlan === "trial" ? "TRIAL"
+                :                        "STARTER"}
             </span>
           </div>
 

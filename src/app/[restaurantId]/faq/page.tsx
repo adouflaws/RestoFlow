@@ -34,6 +34,42 @@ const SUGGESTIONS = [
   },
 ];
 
+const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20passer%20au%20plan%20Pro.";
+
+function PlanBanner() {
+  return (
+    <div style={{ padding: "32px 28px" }}>
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 24px", letterSpacing: "-0.4px" }}>
+        ❓ Questions fréquentes
+      </h1>
+      <div style={{
+        backgroundColor: "#fff", border: "1.5px solid #e2e8f0",
+        borderRadius: 16, padding: "48px 32px",
+        textAlign: "center" as const, maxWidth: 480, margin: "0 auto",
+        boxShadow: "0 4px 24px rgba(0,0,0,.06)",
+      }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 10px" }}>
+          FAQ configurable
+        </h2>
+        <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 24px", lineHeight: 1.6 }}>
+          Disponible à partir du plan <strong>Pro</strong>.
+          Passez au Pro pour créer des réponses automatiques personnalisées pour votre bot.
+        </p>
+        <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            backgroundColor: "#1a4d2e", color: "#fff",
+            padding: "11px 24px", borderRadius: 8,
+            fontSize: 14, fontWeight: 700, textDecoration: "none",
+          }}>
+          💬 Passer au Pro →
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function FaqPage() {
   const params = useParams();
@@ -41,6 +77,7 @@ export default function FaqPage() {
 
   const [faqs,    setFaqs]    = useState<FaqItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [plan,    setPlan]    = useState<string | null>(null);
   const [formQ,   setFormQ]   = useState("");
   const [formA,   setFormA]   = useState("");
   const [formK,   setFormK]   = useState("");
@@ -51,6 +88,16 @@ export default function FaqPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   }
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("restaurants")
+      .select("plan")
+      .eq("id", restaurantId)
+      .single()
+      .then(({ data }) => setPlan((data as { plan?: string } | null)?.plan ?? "starter"));
+  }, [restaurantId]);
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -122,6 +169,8 @@ export default function FaqPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  if (plan === "starter") return <PlanBanner />;
+
   return (
     <div style={{ padding: "32px 28px", minHeight: "100vh", backgroundColor: "#f8fafc" }}>
 

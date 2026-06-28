@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const [restaurantRes, menuRes] = await Promise.all([
     supabaseAdmin
       .from("restaurants")
-      .select("name, address, phone, opening_hours, social_links, statut_abonnement, created_at")
+      .select("name, address, phone, opening_hours, social_links, statut_abonnement, created_at, plan")
       .eq("id", restaurant_id)
       .single(),
     supabaseAdmin
@@ -110,6 +110,26 @@ export async function POST(req: NextRequest) {
   if (restaurant.statut_abonnement === "suspendu") {
     await waSendMessage(customer_phone, SUSPENDED_MSG, restaurant_id);
     return NextResponse.json({ ok: true });
+  }
+
+  // ----- Vérification limite Starter (200 commandes/mois) -----
+  if ((restaurant as { plan?: string }).plan === "starter") {
+    const startOfMonth = new Date(
+      new Date().getFullYear(), new Date().getMonth(), 1
+    ).toISOString();
+    const { count: monthlyCount } = await supabaseAdmin
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("restaurant_id", restaurant_id)
+      .gte("created_at", startOfMonth);
+    if ((monthlyCount ?? 0) >= 200) {
+      await waSendMessage(
+        customer_phone,
+        "Notre service de commande en ligne est temporairement indisponible. Appelez-nous directement.",
+        restaurant_id
+      );
+      return NextResponse.json({ ok: true });
+    }
   }
 
   // ----- Trouver ou créer la conversation -----

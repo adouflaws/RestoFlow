@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface MenuItem {
@@ -45,12 +46,15 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
+const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20passer%20au%20plan%20Pro.";
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 export default function MenuPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
 
   const [items,        setItems]        = useState<MenuItem[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [plan,         setPlan]         = useState("pro");
   const [showForm,     setShowForm]     = useState(false);
   const [filter,       setFilter]       = useState("Tous");
   const [editingId,    setEditingId]    = useState<string | null>(null);
@@ -61,6 +65,16 @@ export default function MenuPage() {
   });
 
   const apiBase = `/api/restaurants/${restaurantId}/menu`;
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("restaurants")
+      .select("plan")
+      .eq("id", restaurantId)
+      .single()
+      .then(({ data }) => setPlan((data as { plan?: string } | null)?.plan ?? "starter"));
+  }, [restaurantId]);
 
   async function load() {
     const res  = await fetch(apiBase);
@@ -172,21 +186,35 @@ export default function MenuPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowForm(!showForm)}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
-            style={{
-              display: "flex", alignItems: "center", gap: 7,
-              backgroundColor: showForm ? "#64748b" : "#1a4d2e",
-              color: "#fff", border: "none", borderRadius: 8,
-              padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
-              cursor: "pointer", transition: "background-color 0.15s",
-              fontFamily: "inherit",
-            }}
-          >
-            {showForm ? "✕ Annuler" : "+ Nouveau plat"}
-          </button>
+          {plan === "starter" && items.length >= 20 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>Limite Starter : 20 plats</span>
+              <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
+                style={{
+                  backgroundColor: "#1a4d2e", color: "#fff",
+                  border: "none", borderRadius: 8, padding: "9px 18px",
+                  fontSize: 13, fontWeight: 700, textDecoration: "none", cursor: "pointer",
+                }}>
+                💬 Passer au Pro
+              </a>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                backgroundColor: showForm ? "#64748b" : "#1a4d2e",
+                color: "#fff", border: "none", borderRadius: 8,
+                padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
+                cursor: "pointer", transition: "background-color 0.15s",
+                fontFamily: "inherit",
+              }}
+            >
+              {showForm ? "✕ Annuler" : "+ Nouveau plat"}
+            </button>
+          )}
         </div>
 
         {/* Filtres catégorie */}

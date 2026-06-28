@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface Zone {
   id: string;
@@ -40,6 +41,8 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
   );
 }
 
+const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20passer%20au%20plan%20Pro.";
+
 export default function ZonesPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
 
@@ -48,9 +51,20 @@ export default function ZonesPage() {
   const [showForm,  setShowForm]  = useState(false);
   const [deleting,  setDeleting]  = useState<string | null>(null);
   const [toast,     setToast]     = useState("");
+  const [plan,      setPlan]      = useState("pro");
   const [form,      setForm]      = useState({
     nom_zone: "", quartiers: "", frais: "",
   });
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("restaurants")
+      .select("plan")
+      .eq("id", restaurantId)
+      .single()
+      .then(({ data }) => setPlan((data as { plan?: string } | null)?.plan ?? "starter"));
+  }, [restaurantId]);
 
   async function load() {
     const res  = await fetch(`/api/zones?restaurant_id=${restaurantId}`);
@@ -144,21 +158,35 @@ export default function ZonesPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setShowForm(!showForm)}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
-            style={{
-              display: "flex", alignItems: "center", gap: 7,
-              backgroundColor: showForm ? "#64748b" : "#1a4d2e",
-              color: "#fff", border: "none", borderRadius: 8,
-              padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
-              cursor: "pointer", transition: "background-color 0.15s",
-              fontFamily: "inherit",
-            }}
-          >
-            {showForm ? "✕ Annuler" : "+ Ajouter une zone"}
-          </button>
+          {plan === "starter" && zones.length >= 1 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>Limite Starter : 1 zone</span>
+              <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
+                style={{
+                  backgroundColor: "#1a4d2e", color: "#fff", border: "none",
+                  borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 700,
+                  textDecoration: "none", cursor: "pointer",
+                }}>
+                💬 Passer au Pro
+              </a>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                backgroundColor: showForm ? "#64748b" : "#1a4d2e",
+                color: "#fff", border: "none", borderRadius: 8,
+                padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
+                cursor: "pointer", transition: "background-color 0.15s",
+                fontFamily: "inherit",
+              }}
+            >
+              {showForm ? "✕ Annuler" : "+ Ajouter une zone"}
+            </button>
+          )}
         </div>
       </header>
 
