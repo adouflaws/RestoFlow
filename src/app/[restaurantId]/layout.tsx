@@ -14,6 +14,7 @@ const NAV = [
   { label: "Menu",               href: "menu",          icon: "🍽️" },
   { label: "Zones de livraison", href: "zones",     icon: "🗺️" },
   { label: "Configuration",      href: "config",    icon: "⚙️" },
+  { label: "FAQ",                href: "faq",       icon: "❓" },
   { label: "Statistiques",       href: "stats",     icon: "📊" },
 ];
 

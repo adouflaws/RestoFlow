@@ -274,6 +274,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // ----- FAQ : correspondance directe par mots-clés (sans appel IA) -----
+
+  const { data: faqKwItems } = await supabaseAdmin
+    .from("faq_items")
+    .select("answer, keywords")
+    .eq("restaurant_id", restaurant_id)
+    .eq("is_published", true);
+
+  const msgLower = message.toLowerCase();
+  const faqKwMatch = (faqKwItems ?? []).find((faq) => {
+    const kws = (faq.keywords as string[] | null) ?? [];
+    return (
+      kws.length > 0 &&
+      kws.some((kw) => msgLower.includes(kw.toLowerCase().trim()))
+    );
+  });
+
+  if (faqKwMatch) {
+    const reply = faqKwMatch.answer as string;
+    await saveExchange(conversation.id, meta, message, reply);
+    await waSendMessage(customer_phone, reply, restaurant_id);
+    return NextResponse.json({ ok: true });
+  }
+
   // ----- Classifier le message -----
 
   const intent = await classifyMessage(message, {
