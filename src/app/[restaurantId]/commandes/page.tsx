@@ -209,7 +209,7 @@ export default function CommandesPage() {
           const expiresAt = new Date(data.created_at);
           expiresAt.setDate(expiresAt.getDate() + 14);
           const days = Math.ceil((expiresAt.getTime() - Date.now()) / 86_400_000);
-          setTrialDaysLeft(Math.max(0, days));
+          setTrialDaysLeft(days);
         }
       });
   }, [restaurantId]);
@@ -376,15 +376,27 @@ export default function CommandesPage() {
   const baseOrders     = orders.filter((o) => o.status !== "cancelled");
   const filteredOrders = filter === "all" ? baseOrders : baseOrders.filter((o) => o.status === filter);
 
-  // ── Badge trial ────────────────────────────────────────────────────────
-  const showTrial   = statut === "trial" && trialDaysLeft !== null;
-  const trialUrgent = trialDaysLeft !== null && trialDaysLeft <= 3;
+  // ── Badge trial (header, seulement si > 7 jours restants) ────────────
+  const showTrial   = statut === "trial" && trialDaysLeft !== null && trialDaysLeft > 7;
+  const trialUrgent = trialDaysLeft !== null && trialDaysLeft > 0 && trialDaysLeft <= 3;
   const trialBg     = trialUrgent ? "#fef2f2" : "#fff7ed";
   const trialBorder = trialUrgent ? "#fecaca" : "#fed7aa";
   const trialColor  = trialUrgent ? "#dc2626"  : "#c2410c";
   const trialLabel  = trialUrgent
     ? `🔴 Plus que ${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} !`
     : `⏳ ${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} d'essai restants`;
+
+  // ── Banners (< 7j = orange, expiré / suspendu = rouge) ───────────────
+  const showOrangeBanner =
+    statut === "trial" && trialDaysLeft !== null && trialDaysLeft > 0 && trialDaysLeft <= 7;
+  const showRedBanner =
+    (statut === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0) ||
+    statut === "suspendu";
+  const mailtoUpgrade = `mailto:adouflaws@gmail.com?subject=${encodeURIComponent(
+    `Passer en compte actif — ${restoName}`
+  )}&body=${encodeURIComponent(
+    `Bonjour,\n\nJe souhaite passer mon restaurant "${restoName}" en compte actif RestoFlow.\n\nMerci de me contacter.\n\nCordialement`
+  )}`;
 
   // ── Delta helper ──────────────────────────────────────────────────────
   function Delta({ today, yest }: { today: number; yest: number }) {
@@ -519,6 +531,73 @@ export default function CommandesPage() {
           </div>
         </div>
       </header>
+
+      {/* ─── Banner orange : < 7 jours restants ────────────────────── */}
+      {showOrangeBanner && (
+        <div style={{
+          backgroundColor: "#fff7ed",
+          borderBottom: "1px solid #fed7aa",
+          padding: "14px 32px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>⏳</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#c2410c" }}>
+                Votre période d&apos;essai expire dans{" "}
+                {trialDaysLeft} jour{(trialDaysLeft ?? 0) > 1 ? "s" : ""}
+              </p>
+              <p style={{ margin: 0, fontSize: 12.5, color: "#9a3412", marginTop: 2 }}>
+                Passez en compte actif pour continuer à utiliser votre bot WhatsApp sans interruption.
+              </p>
+            </div>
+          </div>
+          <a
+            href={mailtoUpgrade}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+              backgroundColor: "#c2410c", color: "#fff",
+              borderRadius: 8, padding: "8px 18px",
+              fontSize: 13, fontWeight: 700, textDecoration: "none",
+            }}
+          >
+            Passer en compte actif →
+          </a>
+        </div>
+      )}
+
+      {/* ─── Banner rouge : expiré ou suspendu ──────────────────────── */}
+      {showRedBanner && (
+        <div style={{
+          backgroundColor: "#fef2f2",
+          borderBottom: "1px solid #fecaca",
+          padding: "14px 32px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🚫</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#dc2626" }}>
+                Votre essai a expiré — Votre bot est suspendu
+              </p>
+              <p style={{ margin: 0, fontSize: 12.5, color: "#991b1b", marginTop: 2 }}>
+                Les messages WhatsApp de vos clients ne sont plus traités. Contactez-nous pour réactiver.
+              </p>
+            </div>
+          </div>
+          <a
+            href="mailto:adouflaws@gmail.com?subject=R%C3%A9activation%20abonnement%20RestoFlow"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0,
+              backgroundColor: "#dc2626", color: "#fff",
+              borderRadius: 8, padding: "8px 18px",
+              fontSize: 13, fontWeight: 700, textDecoration: "none",
+            }}
+          >
+            Contacter RestoFlow →
+          </a>
+        </div>
+      )}
 
       {/* ─── Contenu ────────────────────────────────────────────────── */}
       <div style={{ padding: "28px 32px" }}>

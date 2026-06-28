@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const [restaurantRes, menuRes] = await Promise.all([
     supabaseAdmin
       .from("restaurants")
-      .select("name, address, phone, opening_hours, social_links")
+      .select("name, address, phone, opening_hours, social_links, statut_abonnement, created_at")
       .eq("id", restaurant_id)
       .single(),
     supabaseAdmin
@@ -87,6 +87,29 @@ export async function POST(req: NextRequest) {
 
   if (!restaurant) {
     return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
+  }
+
+  // ----- Vérification abonnement (trial expiré / suspendu) -----
+
+  const SUSPENDED_MSG =
+    "Ce service est temporairement indisponible. Veuillez contacter le restaurant directement.";
+
+  if (restaurant.statut_abonnement === "trial") {
+    const trialExpiry = new Date(restaurant.created_at as string);
+    trialExpiry.setDate(trialExpiry.getDate() + 14);
+    if (new Date() > trialExpiry) {
+      await supabaseAdmin
+        .from("restaurants")
+        .update({ statut_abonnement: "suspendu" })
+        .eq("id", restaurant_id);
+      await waSendMessage(customer_phone, SUSPENDED_MSG, restaurant_id);
+      return NextResponse.json({ ok: true });
+    }
+  }
+
+  if (restaurant.statut_abonnement === "suspendu") {
+    await waSendMessage(customer_phone, SUSPENDED_MSG, restaurant_id);
+    return NextResponse.json({ ok: true });
   }
 
   // ----- Trouver ou créer la conversation -----

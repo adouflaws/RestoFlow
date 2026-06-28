@@ -45,10 +45,18 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
     supabase
       .from("restaurants")
-      .select("name")
+      .select("name, statut_abonnement")
       .eq("id", restaurantId)
       .single()
-      .then(({ data }) => { if (data?.name) setRestoName(data.name); });
+      .then(({ data }) => {
+        if (data?.name) setRestoName(data.name);
+        if (
+          (data as { statut_abonnement?: string } | null)?.statut_abonnement === "suspendu" &&
+          !pathname.endsWith("/suspendu")
+        ) {
+          router.push(`/${restaurantId}/suspendu`);
+        }
+      });
   }, [restaurantId]);
 
   // ── Compteur commandes en attente (polling 30s) ───────────────────────
