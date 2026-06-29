@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 
 // ─── Stripe design tokens adaptés RestoFlow ────────────────────────────────
@@ -172,6 +173,13 @@ export default function LandingPage() {
         input[type=range]{-webkit-appearance:none;width:100%;height:5px;border-radius:3px;background:${BRD};outline:none;cursor:pointer;}
         input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:${G};cursor:pointer;box-shadow:${SH_SM};}
         input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:${G};cursor:pointer;border:none;}
+        a:focus-visible,button:focus-visible{outline:2px solid ${G};outline-offset:2px;border-radius:4px;}
+        input[type=range]:focus-visible{outline:2px solid ${G};outline-offset:3px;}
+        @media(prefers-reduced-motion:reduce){
+          .rff{opacity:1;transform:none;transition:none;}
+          .chat-b{opacity:1;animation:none;}
+          .rf-pulse,.urg-blink{animation:none;}
+        }
         @media(max-width:960px){
           .rf-hero{flex-direction:column!important;text-align:center;align-items:center!important;}
           .rf-hero-btns{justify-content:center!important;}
@@ -197,11 +205,17 @@ export default function LandingPage() {
 
       <div style={{ fontFamily: FONT, color: TX, backgroundColor: "#fff", overflowX: "hidden" }}>
 
+        {/* Skip link accessibilité */}
+        <a href="#main-content" style={{ position: "absolute", left: -9999, top: "auto", width: 1, height: 1, overflow: "hidden" }}
+          onFocus={(e) => { e.currentTarget.style.cssText = "position:fixed;top:0;left:0;z-index:9999;padding:8px 16px;background:#1a4d2e;color:#fff;font-weight:700;font-size:14px;border-radius:0 0 6px 0;width:auto;height:auto;overflow:auto;"; }}
+          onBlur={(e)  => { e.currentTarget.style.cssText = "position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"; }}
+        >Aller au contenu principal</a>
+
         {/* ══ 1. BARRE D'URGENCE ══════════════════════════════════════ */}
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 300, backgroundColor: RD, height: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 14, padding: "0 16px" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 300, backgroundColor: RD, height: "calc(44px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)", display: "flex", alignItems: "center", justifyContent: "center", gap: 14, padding: "env(safe-area-inset-top) 16px 0" }}>
           <p className="rf-urg-txt urg-blink" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: "#fff", whiteSpace: "nowrap" as const }}>
             🔥 Offre de lancement — Prix augmentent le 1er août 2026 — Il reste{" "}
-            <strong style={{ borderBottom: "1px dashed rgba(255,255,255,.65)" }}>{spots} places</strong> au tarif actuel
+            <strong aria-live="polite" style={{ borderBottom: "1px dashed rgba(255,255,255,.65)" }}>{spots} places</strong> au tarif actuel
           </p>
           <Link href="/signup" style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 800, color: RD, backgroundColor: "#fff", borderRadius: 4, padding: "4px 12px", textDecoration: "none", whiteSpace: "nowrap" as const }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = ".85")}
@@ -210,7 +224,7 @@ export default function LandingPage() {
         </div>
 
         {/* ══ 2. NAVBAR ═══════════════════════════════════════════════ */}
-        <nav style={{ position: "fixed", top: 44, left: 0, right: 0, zIndex: 200, backgroundColor: "rgba(255,255,255,.97)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${BRD}`, boxShadow: SH_SM }}>
+        <nav style={{ position: "fixed", top: "calc(44px + env(safe-area-inset-top))", left: 0, right: 0, zIndex: 200, backgroundColor: "rgba(255,255,255,.97)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${BRD}`, boxShadow: SH_SM }}>
           <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 28px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Link href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 6, backgroundColor: G, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", letterSpacing: "-.5px" }}>RF</div>
@@ -235,7 +249,7 @@ export default function LandingPage() {
         </nav>
 
         {/* ══ 3. HERO ═════════════════════════════════════════════════ */}
-        <section style={{ paddingTop: 44 + 64 + 64, paddingBottom: 88, paddingLeft: 28, paddingRight: 28, background: `linear-gradient(160deg,${SRF} 0%,#fff 60%)` }}>
+        <section id="main-content" style={{ paddingTop: 44 + 64 + 64, paddingBottom: 88, paddingLeft: 28, paddingRight: 28, background: `linear-gradient(160deg,${SRF} 0%,#fff 60%)` }}>
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div className="rf-hero" style={{ display: "flex", alignItems: "center", gap: 60 }}>
 
@@ -246,7 +260,7 @@ export default function LandingPage() {
                   <span style={{ fontSize: 12.5, fontWeight: 700, color: RD }}>Plus de 12 restaurants sur liste d&apos;attente</span>
                 </div>
 
-                <h1 className="rff d1 rf-h1" style={{ fontSize: 50, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-1.6px", color: TX, margin: "0 0 22px" }}>
+                <h1 className="rff d1 rf-h1" style={{ fontSize: 50, fontWeight: 800, lineHeight: 1.08, letterSpacing: "-1.6px", color: TX, margin: "0 0 22px", textWrap: "balance" } as React.CSSProperties}>
                   Votre restaurant <span style={{ color: RD }}>perd des commandes</span> chaque nuit pendant que vous dormez
                 </h1>
 
@@ -271,7 +285,7 @@ export default function LandingPage() {
 
                 {/* CTAs */}
                 <div className="rff rf-hero-btns d3" style={{ display: "flex", gap: 12, flexWrap: "wrap" as const }}>
-                  <Link href="/signup" style={{ display: "inline-flex", flexDirection: "column" as const, alignItems: "center", backgroundColor: G, color: "#fff", padding: "14px 28px", borderRadius: 8, fontSize: 15, fontWeight: 700, textDecoration: "none", boxShadow: `0 4px 14px rgba(26,77,46,.30)`, transition: "all .15s", gap: 2 }}
+                  <Link href="/signup" style={{ display: "inline-flex", flexDirection: "column" as const, alignItems: "center", backgroundColor: G, color: "#fff", padding: "14px 28px", borderRadius: 8, fontSize: 15, fontWeight: 700, textDecoration: "none", boxShadow: `0 4px 14px rgba(26,77,46,.30)`, transition: "background-color .15s, transform .15s, box-shadow .15s, border-color .15s, color .15s", gap: 2 }}
                     onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GL; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(26,77,46,.35)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = G; e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 14px rgba(26,77,46,.30)`; }}
                   >
@@ -322,7 +336,7 @@ export default function LandingPage() {
         <section className="rf-sec" style={{ padding: "80px 28px", backgroundColor: SRF }}>
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div className="rff" style={{ textAlign: "center" as const, marginBottom: 44 }}>
-              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", color: TX, margin: 0 }}>
+              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", color: TX, margin: 0, textWrap: "balance" } as React.CSSProperties}>
                 La réalité des restaurants à Bamako
               </h2>
             </div>
@@ -354,7 +368,7 @@ export default function LandingPage() {
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div className="rff" style={{ textAlign: "center" as const, marginBottom: 52 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: GL, letterSpacing: ".12em", textTransform: "uppercase" as const }}>Preuve sociale</span>
-              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 0", color: TX }}>
+              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 0", color: TX, textWrap: "balance" } as React.CSSProperties}>
                 Ce que disent les restaurants qui utilisent RestoFlow
               </h2>
             </div>
@@ -383,14 +397,14 @@ export default function LandingPage() {
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div className="rff" style={{ textAlign: "center" as const, marginBottom: 48 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: GL, letterSpacing: ".12em", textTransform: "uppercase" as const }}>Fonctionnalités</span>
-              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 12px", color: TX }}>
+              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 12px", color: TX, textWrap: "balance" } as React.CSSProperties}>
                 Chaque fonctionnalité génère du revenu
               </h2>
             </div>
             <div className="rf-feat" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
               {FEATURES.map((f, i) => (
                 <div key={i} className={`rff d${i + 1}`}
-                  style={{ backgroundColor: "#fff", border: `1px solid ${BRD}`, borderRadius: 8, padding: "24px", transition: "all .2s", cursor: "default", boxShadow: SH_SM }}
+                  style={{ backgroundColor: "#fff", border: `1px solid ${BRD}`, borderRadius: 8, padding: "24px", transition: "box-shadow .2s, border-color .2s, transform .2s", cursor: "default", boxShadow: SH_SM }}
                   onMouseEnter={(e) => { e.currentTarget.style.boxShadow = `0 6px 16px rgba(50,50,93,.10), 0 2px 4px rgba(0,0,0,.06)`; e.currentTarget.style.borderColor = "#a7f3d0"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = SH_SM; e.currentTarget.style.borderColor = BRD; e.currentTarget.style.transform = ""; }}
                 >
@@ -411,7 +425,7 @@ export default function LandingPage() {
           <div style={{ maxWidth: 1120, margin: "0 auto" }}>
             <div className="rff" style={{ textAlign: "center" as const, marginBottom: 48 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: GL, letterSpacing: ".12em", textTransform: "uppercase" as const }}>Tarifs</span>
-              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 12px", color: TX }}>
+              <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: "-1px", margin: "10px 0 12px", color: TX, textWrap: "balance" } as React.CSSProperties}>
                 Investissez moins qu&apos;un employé, gagnez comme une équipe
               </h2>
               <p style={{ fontSize: 16, color: TX2, margin: "0 auto 20px", maxWidth: 540 }}>
@@ -454,13 +468,13 @@ export default function LandingPage() {
                   </ul>
                   {plan.href.startsWith("http") ? (
                     <a href={plan.href} target="_blank" rel="noopener noreferrer"
-                      style={{ display: "block", textAlign: "center" as const, padding: "12px 0", backgroundColor: "transparent", color: G, border: `1.5px solid ${G}`, borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", transition: "all .15s" }}
+                      style={{ display: "block", textAlign: "center" as const, padding: "12px 0", backgroundColor: "transparent", color: G, border: `1.5px solid ${G}`, borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", transition: "background-color .15s, transform .15s, box-shadow .15s, border-color .15s, color .15s" }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = G; e.currentTarget.style.color = "#fff"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = G; }}
                     >{plan.cta}</a>
                   ) : (
                     <Link href={plan.href}
-                      style={{ display: "block", textAlign: "center" as const, padding: "12px 0", backgroundColor: plan.popular ? G : "transparent", color: plan.popular ? "#fff" : G, border: `1.5px solid ${G}`, borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", transition: "all .15s" }}
+                      style={{ display: "block", textAlign: "center" as const, padding: "12px 0", backgroundColor: plan.popular ? G : "transparent", color: plan.popular ? "#fff" : G, border: `1.5px solid ${G}`, borderRadius: 6, fontSize: 14, fontWeight: 700, textDecoration: "none", transition: "background-color .15s, transform .15s, box-shadow .15s, border-color .15s, color .15s" }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = GL; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = GL; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = plan.popular ? G : "transparent"; e.currentTarget.style.color = plan.popular ? "#fff" : G; e.currentTarget.style.borderColor = G; }}
                     >{plan.cta}</Link>
@@ -493,7 +507,7 @@ export default function LandingPage() {
                     <label style={{ fontSize: 14, fontWeight: 600, color: TX }}>Commandes par jour</label>
                     <span style={{ fontSize: 18, fontWeight: 800, color: G }}>{cmdPerDay}</span>
                   </div>
-                  <input type="range" min={5} max={100} value={cmdPerDay} onChange={(e) => setCmdPerDay(Number(e.target.value))} />
+                  <input id="slider-cmd" type="range" min={5} max={100} value={cmdPerDay} onChange={(e) => setCmdPerDay(Number(e.target.value))} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: TX3, marginTop: 5 }}><span>5</span><span>100</span></div>
                 </div>
                 <div>
@@ -501,7 +515,7 @@ export default function LandingPage() {
                     <label style={{ fontSize: 14, fontWeight: 600, color: TX }}>Prix moyen d&apos;une commande</label>
                     <span style={{ fontSize: 18, fontWeight: 800, color: G }}>{fmt(avgPrice)} FCFA</span>
                   </div>
-                  <input type="range" min={1000} max={10000} step={500} value={avgPrice} onChange={(e) => setAvgPrice(Number(e.target.value))} />
+                  <input id="slider-price" type="range" min={1000} max={10000} step={500} value={avgPrice} onChange={(e) => setAvgPrice(Number(e.target.value))} />
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: TX3, marginTop: 5 }}><span>1 000</span><span>10 000 FCFA</span></div>
                 </div>
               </div>
@@ -546,7 +560,7 @@ export default function LandingPage() {
             </div>
             {FAQS.map((faq, i) => (
               <div key={i} className={`rff d${Math.min(i + 1, 6)}`} style={{ borderBottom: `1px solid ${BRD}` }}>
-                <button onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                <button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}
                   style={{ width: "100%", textAlign: "left" as const, padding: "18px 0", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}
                 >
                   <span style={{ fontSize: 15, fontWeight: 600, color: TX, lineHeight: 1.4 }}>{faq.q}</span>
@@ -575,7 +589,7 @@ export default function LandingPage() {
               <p style={{ fontSize: 17, color: "rgba(255,255,255,.72)", margin: "0 0 36px", lineHeight: 1.6 }}>
                 7 jours gratuits — Configuration en 10 minutes — Aucune carte requise
               </p>
-              <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", gap: 8, backgroundColor: "#fff", color: G, padding: "16px 40px", borderRadius: 8, fontSize: 16, fontWeight: 800, textDecoration: "none", boxShadow: "0 8px 24px rgba(0,0,0,.22)", transition: "all .15s" }}
+              <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", gap: 8, backgroundColor: "#fff", color: G, padding: "16px 40px", borderRadius: 8, fontSize: 16, fontWeight: 800, textDecoration: "none", boxShadow: "0 8px 24px rgba(0,0,0,.22)", transition: "background-color .15s, transform .15s, box-shadow .15s, border-color .15s, color .15s" }}
                 onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,.28)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,.22)"; }}
               >

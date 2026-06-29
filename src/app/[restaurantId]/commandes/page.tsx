@@ -419,6 +419,10 @@ export default function CommandesPage() {
     <>
       <style>{`
         @keyframes rfDot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.7);} }
+        a:focus-visible,button:focus-visible{outline:2px solid #1a4d2e;outline-offset:2px;border-radius:4px;}
+        @media(prefers-reduced-motion:reduce){
+          *{animation:none!important;transition-duration:.01ms!important;}
+        }
         * { font-family: ${T.font}; }
       `}</style>
 
@@ -474,6 +478,7 @@ export default function CommandesPage() {
             {/* Toggle son */}
             <button
               onClick={handleSoundToggle}
+              aria-label={soundEnabled ? "Desactiver les notifications sonores" : "Activer les notifications sonores"}
               title={soundEnabled ? "Désactiver les notifications sonores" : "Activer les notifications sonores"}
               style={{
                 width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
@@ -597,7 +602,7 @@ export default function CommandesPage() {
       <div style={{ padding: "24px", backgroundColor: T.surface, minHeight: "calc(100vh - 60px)" }}>
 
         {/* ─── KPI cards ────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 20 }}>
           {([
             { icon: "💰", label: "CA du jour",               accent: "#16a34a", value: `${fmt(kpiCA)} FCFA`, delta: <Delta today={kpiCA} yest={ykpiCA} /> },
             { icon: "📦", label: "Commandes aujourd'hui",    accent: "#2e6da4", value: String(kpiTotal),     delta: <Delta today={kpiTotal} yest={ykpiTotal} /> },
@@ -637,7 +642,7 @@ export default function CommandesPage() {
                   backgroundColor: active ? T.brand : "#fff",
                   color: active ? "#fff" : T.textSec,
                   fontSize: 13, fontWeight: active ? 700 : 500,
-                  cursor: "pointer", transition: "all 0.12s",
+                  cursor: "pointer", transition: "background-color 0.12s, color 0.12s, border-color 0.12s",
                   fontFamily: "inherit",
                   boxShadow: active ? "none" : T.shadowSm,
                 }}
@@ -649,6 +654,9 @@ export default function CommandesPage() {
         </div>
 
         {/* ─── Section commandes ──────────────────────────────────── */}
+        <div aria-live="polite" aria-atomic="false" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>
+          {orders.length > 0 && `${orders.length} commande${orders.length > 1 ? "s" : ""}`}
+        </div>
         {orders.length === 0 ? (
           <div style={{
             backgroundColor: "#fff", borderRadius: 8,
@@ -821,6 +829,9 @@ export default function CommandesPage() {
       {/* ─── Modal aperçu bot ───────────────────────────────────────── */}
       {showModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-bot-title"
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
           style={{
             position: "fixed", inset: 0,
@@ -834,6 +845,7 @@ export default function CommandesPage() {
             width: 360, height: 620, borderRadius: 12, overflow: "hidden",
             display: "flex", flexDirection: "column",
             boxShadow: "0 30px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(50,50,93,.05)",
+            overscrollBehavior: "contain",
           }}>
             {/* Header WhatsApp */}
             <div style={{
@@ -842,7 +854,8 @@ export default function CommandesPage() {
             }}>
               <button
                 onClick={() => setShowModal(false)}
-                style={{
+                aria-label="Fermer"
+                  style={{
                   background: "none", border: "none",
                   color: "rgba(255,255,255,0.8)", fontSize: 20,
                   cursor: "pointer", padding: 4, lineHeight: 1, fontFamily: "inherit",
@@ -855,7 +868,7 @@ export default function CommandesPage() {
                 fontSize: 18, flexShrink: 0,
               }}>🤖</div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
+                <div id="modal-bot-title" style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>
                   {restoName || "Mon Restaurant"}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
