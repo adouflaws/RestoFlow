@@ -5,6 +5,18 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL ?? "";
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Routes publiques — court-circuit avant tout appel Supabase
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/auth");
+
+  if (isPublic) return NextResponse.next();
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,16 +46,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-
-  // Routes publiques — toujours accessibles sans session
-  const isPublic =
-    pathname === "/" ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/auth");
 
   // Routes qui exigent une session authentifiée
   // /dashboard, /admin, et /[restaurantId]/... (UUID v4)
@@ -92,8 +94,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Routes publiques et routes inconnues → laisser passer
-  void isPublic;
   return supabaseResponse;
 }
 
