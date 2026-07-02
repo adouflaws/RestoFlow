@@ -2,7 +2,11 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
+import { Lightbulb, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PlanBanner } from "@/components/dashboard/PlanBanner";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { SH } from "@/lib/ds";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FaqItem {
@@ -34,41 +38,6 @@ const SUGGESTIONS = [
   },
 ];
 
-const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20passer%20au%20plan%20Pro.";
-
-function PlanBanner() {
-  return (
-    <div style={{ padding: "32px 28px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 24px", letterSpacing: "-0.4px" }}>
-        ❓ Questions fréquentes
-      </h1>
-      <div style={{
-        backgroundColor: "#fff", border: "1.5px solid #e2e8f0",
-        borderRadius: 16, padding: "48px 32px",
-        textAlign: "center" as const, maxWidth: 480, margin: "0 auto",
-        boxShadow: "0 4px 24px rgba(0,0,0,.06)",
-      }}>
-        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 10px" }}>
-          FAQ configurable
-        </h2>
-        <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 24px", lineHeight: 1.6 }}>
-          Disponible à partir du plan <strong>Pro</strong>.
-          Passez au Pro pour créer des réponses automatiques personnalisées pour votre bot.
-        </p>
-        <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            backgroundColor: "#1a4d2e", color: "#fff",
-            padding: "11px 24px", borderRadius: 8,
-            fontSize: 14, fontWeight: 700, textDecoration: "none",
-          }}>
-          💬 Passer au Pro →
-        </a>
-      </div>
-    </div>
-  );
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function FaqPage() {
@@ -169,10 +138,21 @@ export default function FaqPage() {
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-  if (plan === "starter") return <PlanBanner />;
+  if (plan === "starter") {
+    return (
+      <PlanBanner
+        feature="FAQ configurable"
+        description="Disponible à partir du plan Pro. Passez au Pro pour créer des réponses automatiques personnalisées pour votre bot."
+      />
+    );
+  }
 
   return (
-    <div style={{ padding: "32px 28px", minHeight: "100vh", backgroundColor: "#f8fafc" }}>
+    <>
+      <PageHeader
+        title="Questions fréquentes"
+        subtitle={`Réponses automatiques du bot · ${faqs.length} FAQ${faqs.length > 1 ? "s" : ""}`}
+      />
 
       {/* Toast */}
       {toast && (
@@ -187,29 +167,19 @@ export default function FaqPage() {
         </div>
       )}
 
-      {/* ── En-tête ─────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{
-          fontSize: 22, fontWeight: 800, color: "#0f172a",
-          margin: 0, letterSpacing: "-0.4px",
-        }}>
-          ❓ Questions fréquentes
-        </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13.5, color: "#64748b" }}>
-          Configurez les réponses automatiques de votre bot — aucun appel IA si un mot-clé correspond
-        </p>
-      </div>
+    <div style={{ padding: "28px 32px" }}>
 
       {/* ── Formulaire d'ajout ───────────────────────────────────────── */}
       <div style={{
         backgroundColor: "#fff",
-        border: "1px solid #e2e8f0",
+        border: "1px solid #e0e6eb",
         borderRadius: 12,
+        boxShadow: SH.md,
         padding: "24px",
         marginBottom: 28,
       }}>
         <h2 style={{
-          fontSize: 14, fontWeight: 700, color: "#0f172a",
+          fontSize: 14, fontWeight: 700, color: "#30313d",
           margin: "0 0 18px",
         }}>
           + Ajouter une FAQ
@@ -219,7 +189,7 @@ export default function FaqPage() {
           {/* Question */}
           <div>
             <label style={{
-              fontSize: 12.5, fontWeight: 600, color: "#374151",
+              fontSize: 12.5, fontWeight: 600, color: "#6b7c93",
               display: "block", marginBottom: 5,
             }}>
               Question
@@ -231,9 +201,9 @@ export default function FaqPage() {
               placeholder="Ex : Acceptez-vous les cartes bancaires ?"
               style={{
                 width: "100%", padding: "9px 12px",
-                fontSize: 13.5, border: "1px solid #e2e8f0",
+                fontSize: 13.5, border: "1px solid #e0e6eb",
                 borderRadius: 8, outline: "none",
-                fontFamily: "inherit", color: "#0f172a",
+                fontFamily: "inherit", color: "#30313d",
                 boxSizing: "border-box" as const,
               }}
             />
@@ -242,7 +212,7 @@ export default function FaqPage() {
           {/* Réponse */}
           <div>
             <label style={{
-              fontSize: 12.5, fontWeight: 600, color: "#374151",
+              fontSize: 12.5, fontWeight: 600, color: "#6b7c93",
               display: "block", marginBottom: 5,
             }}>
               Réponse
@@ -254,9 +224,9 @@ export default function FaqPage() {
               rows={3}
               style={{
                 width: "100%", padding: "9px 12px",
-                fontSize: 13.5, border: "1px solid #e2e8f0",
+                fontSize: 13.5, border: "1px solid #e0e6eb",
                 borderRadius: 8, outline: "none", resize: "vertical" as const,
-                fontFamily: "inherit", color: "#0f172a",
+                fontFamily: "inherit", color: "#30313d",
                 boxSizing: "border-box" as const, lineHeight: 1.5,
               }}
             />
@@ -265,11 +235,11 @@ export default function FaqPage() {
           {/* Mots-clés */}
           <div>
             <label style={{
-              fontSize: 12.5, fontWeight: 600, color: "#374151",
+              fontSize: 12.5, fontWeight: 600, color: "#6b7c93",
               display: "block", marginBottom: 5,
             }}>
               Mots-clés{" "}
-              <span style={{ fontWeight: 400, color: "#94a3b8" }}>
+              <span style={{ fontWeight: 400, color: "#8898aa" }}>
                 (séparés par virgule)
               </span>
             </label>
@@ -280,13 +250,13 @@ export default function FaqPage() {
               placeholder="Ex : carte, CB, paiement, mobile money"
               style={{
                 width: "100%", padding: "9px 12px",
-                fontSize: 13.5, border: "1px solid #e2e8f0",
+                fontSize: 13.5, border: "1px solid #e0e6eb",
                 borderRadius: 8, outline: "none",
-                fontFamily: "inherit", color: "#0f172a",
+                fontFamily: "inherit", color: "#30313d",
                 boxSizing: "border-box" as const,
               }}
             />
-            <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "5px 0 0" }}>
+            <p style={{ fontSize: 11.5, color: "#8898aa", margin: "5px 0 0" }}>
               Si un message client contient l&apos;un de ces mots, le bot répond directement sans appeler l&apos;IA
             </p>
           </div>
@@ -299,9 +269,9 @@ export default function FaqPage() {
               style={{
                 padding: "9px 22px",
                 backgroundColor:
-                  adding || !formQ.trim() || !formA.trim() ? "#e2e8f0" : "#1a4d2e",
+                  adding || !formQ.trim() || !formA.trim() ? "#e0e6eb" : "#1a4d2e",
                 color:
-                  adding || !formQ.trim() || !formA.trim() ? "#94a3b8" : "#fff",
+                  adding || !formQ.trim() || !formA.trim() ? "#8898aa" : "#fff",
                 border: "none", borderRadius: 8,
                 fontSize: 13.5, fontWeight: 700,
                 cursor:
@@ -320,7 +290,7 @@ export default function FaqPage() {
       {loading ? (
         <div style={{
           textAlign: "center" as const, padding: "60px 0",
-          color: "#94a3b8", fontSize: 14,
+          color: "#8898aa", fontSize: 14,
         }}>
           Chargement…
         </div>
@@ -330,22 +300,22 @@ export default function FaqPage() {
           <div style={{
             textAlign: "center" as const, padding: "48px 24px",
             backgroundColor: "#fff", borderRadius: 12,
-            border: "1px solid #e2e8f0", marginBottom: 20,
+            border: "1px solid #e0e6eb", marginBottom: 20,
           }}>
-            <div style={{ fontSize: 38, marginBottom: 12 }}>💡</div>
+            <Lightbulb size={38} style={{ color: "#8898aa", marginBottom: 12 }} />
             <p style={{
-              fontSize: 15, fontWeight: 600, color: "#0f172a",
+              fontSize: 15, fontWeight: 600, color: "#30313d",
               margin: "0 0 6px",
             }}>
               Aucune FAQ configurée
             </p>
-            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
+            <p style={{ fontSize: 13, color: "#8898aa", margin: 0 }}>
               Ajoutez votre première FAQ ou utilisez une suggestion ci-dessous
             </p>
           </div>
 
           <p style={{
-            fontSize: 12.5, fontWeight: 600, color: "#64748b",
+            fontSize: 12.5, fontWeight: 600, color: "#6b7c93",
             margin: "0 0 10px",
           }}>
             Suggestions — cliquez pour pré-remplir le formulaire :
@@ -359,7 +329,7 @@ export default function FaqPage() {
                 style={{
                   padding: "14px 18px",
                   backgroundColor: "#fff",
-                  border: "1px solid #e2e8f0",
+                  border: "1px solid #e0e6eb",
                   borderRadius: 10,
                   cursor: "pointer",
                   transition: "border-color 0.1s",
@@ -368,16 +338,16 @@ export default function FaqPage() {
                   (e.currentTarget.style.borderColor = "#16a34a")
                 }
                 onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "#e2e8f0")
+                  (e.currentTarget.style.borderColor = "#e0e6eb")
                 }
               >
                 <p style={{
                   margin: "0 0 4px", fontSize: 13.5,
-                  fontWeight: 600, color: "#0f172a",
+                  fontWeight: 600, color: "#30313d",
                 }}>
                   {s.q}
                 </p>
-                <p style={{ margin: 0, fontSize: 12.5, color: "#94a3b8" }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: "#8898aa" }}>
                   {s.a}
                 </p>
               </div>
@@ -388,7 +358,7 @@ export default function FaqPage() {
         /* ── Liste des FAQs ── */
         <div>
           <p style={{
-            fontSize: 12.5, color: "#64748b", fontWeight: 600,
+            fontSize: 12.5, color: "#6b7c93", fontWeight: 600,
             margin: "0 0 10px",
           }}>
             {faqs.length} FAQ{faqs.length > 1 ? "s" : ""} configurée{faqs.length > 1 ? "s" : ""}
@@ -397,8 +367,9 @@ export default function FaqPage() {
 
           <div style={{
             backgroundColor: "#fff",
-            border: "1px solid #e2e8f0",
+            border: "1px solid #e0e6eb",
             borderRadius: 12,
+            boxShadow: SH.md,
             overflow: "hidden",
           }}>
             {faqs.map((faq, i) => (
@@ -406,7 +377,7 @@ export default function FaqPage() {
                 key={faq.id}
                 style={{
                   padding: "18px 20px",
-                  borderBottom: i < faqs.length - 1 ? "1px solid #f1f5f9" : "none",
+                  borderBottom: i < faqs.length - 1 ? "1px solid #f4f5f6" : "none",
                   opacity: faq.is_published ? 1 : 0.5,
                   transition: "opacity 0.2s",
                 }}
@@ -419,13 +390,13 @@ export default function FaqPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{
                       margin: "0 0 5px", fontSize: 14,
-                      fontWeight: 700, color: "#0f172a",
+                      fontWeight: 700, color: "#30313d",
                     }}>
                       {faq.question}
                     </p>
                     <p style={{
                       margin: "0 0 10px", fontSize: 13,
-                      color: "#64748b", lineHeight: 1.55,
+                      color: "#6b7c93", lineHeight: 1.55,
                     }}>
                       {faq.answer}
                     </p>
@@ -445,7 +416,7 @@ export default function FaqPage() {
                         ))}
                       </div>
                     ) : (
-                      <span style={{ fontSize: 11, color: "#cbd5e1" }}>
+                      <span style={{ fontSize: 11, color: "#8898aa" }}>
                         Aucun mot-clé — réponse via IA uniquement
                       </span>
                     )}
@@ -466,9 +437,9 @@ export default function FaqPage() {
                         fontSize: 11.5, fontWeight: 700,
                         cursor: "pointer", fontFamily: "inherit",
                         transition: "all 0.12s",
-                        backgroundColor: faq.is_published ? "#f0fdf4" : "#f1f5f9",
-                        borderColor:     faq.is_published ? "#bbf7d0" : "#e2e8f0",
-                        color:           faq.is_published ? "#16a34a" : "#94a3b8",
+                        backgroundColor: faq.is_published ? "#f0fdf4" : "#f4f5f6",
+                        borderColor:     faq.is_published ? "#bbf7d0" : "#e0e6eb",
+                        color:           faq.is_published ? "#16a34a" : "#8898aa",
                       }}
                     >
                       {faq.is_published ? "● Actif" : "○ Inactif"}
@@ -495,7 +466,7 @@ export default function FaqPage() {
                         (e.currentTarget.style.backgroundColor = "#fef2f2")
                       }
                     >
-                      🗑️
+                      <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
@@ -507,7 +478,7 @@ export default function FaqPage() {
           {faqs.length < 3 && (
             <div style={{ marginTop: 20 }}>
               <p style={{
-                fontSize: 12.5, fontWeight: 600, color: "#64748b",
+                fontSize: 12.5, fontWeight: 600, color: "#6b7c93",
                 margin: "0 0 10px",
               }}>
                 Suggestions supplémentaires :
@@ -522,7 +493,7 @@ export default function FaqPage() {
                     style={{
                       padding: "12px 16px",
                       backgroundColor: "#fff",
-                      border: "1px solid #e2e8f0",
+                      border: "1px solid #e0e6eb",
                       borderRadius: 8,
                       cursor: "pointer",
                       display: "flex", alignItems: "center", gap: 10,
@@ -532,13 +503,13 @@ export default function FaqPage() {
                       (e.currentTarget.style.borderColor = "#16a34a")
                     }
                     onMouseLeave={(e) =>
-                      (e.currentTarget.style.borderColor = "#e2e8f0")
+                      (e.currentTarget.style.borderColor = "#e0e6eb")
                     }
                   >
                     <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>
                       +
                     </span>
-                    <span style={{ fontSize: 13, color: "#0f172a", fontWeight: 500 }}>
+                    <span style={{ fontSize: 13, color: "#30313d", fontWeight: 500 }}>
                       {s.q}
                     </span>
                   </div>
@@ -549,5 +520,6 @@ export default function FaqPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

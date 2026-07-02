@@ -3,28 +3,32 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { LoadingScreen } from "@/components/dashboard/LoadingScreen";
+import { SH } from "@/lib/ds";
+import { Store, Clock, Bot, AlertTriangle, Copy, Mail, Save, CheckCircle2 } from "lucide-react";
 
 interface OpeningHours { [day: string]: string; }
 
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 function SectionCard({ title, icon, children }: {
-  title: string; icon: string; children: React.ReactNode;
+  title: string; icon: React.ReactNode; children: React.ReactNode;
 }) {
   return (
     <div style={{
       backgroundColor: "#fff", borderRadius: 14,
-      border: "1px solid #e2e8f0",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+      border: "1px solid #e0e6eb",
+      boxShadow: SH.md,
       marginBottom: 20, overflow: "hidden",
     }}>
       <div style={{
-        padding: "16px 24px", borderBottom: "1px solid #f1f5f9",
+        padding: "16px 24px", borderBottom: "1px solid #f4f5f6",
         display: "flex", alignItems: "center", gap: 10,
       }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <span style={{ color: "#6b7c93", display: "flex" }}>{icon}</span>
         <h3 style={{
-          fontSize: 14, fontWeight: 700, color: "#0f172a",
+          fontSize: 14, fontWeight: 700, color: "#30313d",
           margin: 0, letterSpacing: "-0.2px",
         }}>
           {title}
@@ -116,51 +120,27 @@ export default function ConfigPage() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "10px 12px",
-    border: "1px solid #e2e8f0", borderRadius: 8,
+    border: "1px solid #e0e6eb", borderRadius: 8,
     fontSize: 13.5, outline: "none", boxSizing: "border-box",
-    fontFamily: "inherit", color: "#0f172a", backgroundColor: "#fff",
+    fontFamily: "inherit", color: "#30313d", backgroundColor: "#fff",
   };
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: 12, fontWeight: 600,
-    color: "#64748b", marginBottom: 5,
+    color: "#6b7c93", marginBottom: 5,
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div style={{ textAlign: "center", color: "#94a3b8" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⚙️</div>
-          <p style={{ fontSize: 14 }}>Chargement…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Chargement…" />;
 
   return (
     <>
-      {/* ── Header sticky ─────────────────────────────────────────── */}
-      <header style={{
-        position: "sticky", top: 0, zIndex: 50,
-        backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0",
-        padding: "0 32px", height: 64,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <div>
-          <h1 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0, letterSpacing: "-0.3px" }}>
-            Configuration
-          </h1>
-          <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, marginTop: 1 }}>
-            Profil, horaires et paramètres du bot
-          </p>
-        </div>
-      </header>
+      <PageHeader title="Configuration" subtitle="Profil, horaires et paramètres du bot" />
 
       {/* ── Contenu ───────────────────────────────────────────────── */}
       <div style={{ padding: "28px 32px 100px", maxWidth: 720 }}>
         <form id="config-form" onSubmit={handleSave}>
 
           {/* ── Profil restaurant ─────────────────────────────────── */}
-          <SectionCard title="Profil restaurant" icon="🏪">
+          <SectionCard title="Profil restaurant" icon={<Store size={17} />}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={labelStyle}>Nom du restaurant *</label>
@@ -200,7 +180,7 @@ export default function ConfigPage() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   style={{ ...inputStyle, resize: "vertical" as const }}
                 />
-                <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "5px 0 0" }}>
+                <p style={{ fontSize: 11.5, color: "#8898aa", margin: "5px 0 0" }}>
                   Ce message est envoyé par le bot lors du premier contact
                 </p>
               </div>
@@ -208,7 +188,7 @@ export default function ConfigPage() {
           </SectionCard>
 
           {/* ── Horaires ──────────────────────────────────────────── */}
-          <SectionCard title="Horaires d'ouverture" icon="🕐">
+          <SectionCard title="Horaires d'ouverture" icon={<Clock size={17} />}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {DAYS.map((day) => {
                 const closed = isDayClosed(day);
@@ -216,18 +196,18 @@ export default function ConfigPage() {
                   <div key={day} style={{
                     display: "flex", alignItems: "center", gap: 12,
                     padding: "8px 0",
-                    borderBottom: "1px solid #f8fafc",
+                    borderBottom: "1px solid #f6f9fc",
                   }}>
                     <span style={{
                       width: 88, fontSize: 13.5, fontWeight: 600,
-                      color: closed ? "#cbd5e1" : "#334155", flexShrink: 0,
+                      color: closed ? "#8898aa" : "#30313d", flexShrink: 0,
                     }}>
                       {day}
                     </span>
 
                     {closed ? (
                       <span style={{
-                        flex: 1, fontSize: 13, color: "#94a3b8",
+                        flex: 1, fontSize: 13, color: "#8898aa",
                         fontStyle: "italic",
                       }}>
                         Fermé
@@ -240,22 +220,22 @@ export default function ConfigPage() {
                         onChange={(e) => setHours(day, e.target.value)}
                         style={{
                           flex: 1, padding: "7px 12px",
-                          border: "1px solid #e2e8f0", borderRadius: 7,
-                          fontSize: 13, outline: "none", fontFamily: "inherit", color: "#0f172a",
+                          border: "1px solid #e0e6eb", borderRadius: 7,
+                          fontSize: 13, outline: "none", fontFamily: "inherit", color: "#30313d",
                         }}
                       />
                     )}
 
                     {/* Toggle Fermé */}
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11.5, color: closed ? "#94a3b8" : "#64748b" }}>
+                      <span style={{ fontSize: 11.5, color: closed ? "#8898aa" : "#6b7c93" }}>
                         {closed ? "Fermé" : "Ouvert"}
                       </span>
                       <div
                         onClick={() => toggleDayClosed(day)}
                         style={{
                           width: 40, height: 22, borderRadius: 11,
-                          backgroundColor: closed ? "#e2e8f0" : "#22c55e",
+                          backgroundColor: closed ? "#e0e6eb" : "#22c55e",
                           position: "relative", cursor: "pointer",
                           transition: "background-color 0.2s",
                         }}
@@ -278,13 +258,13 @@ export default function ConfigPage() {
         </form>
 
         {/* ── Bot WhatsApp (lecture seule) ───────────────────────── */}
-        <SectionCard title="Bot WhatsApp" icon="🤖">
+        <SectionCard title="Bot WhatsApp" icon={<Bot size={17} />}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
             <div style={{
               flex: 1, padding: "11px 14px",
-              border: "1px solid #e2e8f0", borderRadius: 8,
-              fontSize: 13.5, color: form.phone ? "#0f172a" : "#94a3b8",
-              backgroundColor: "#f8fafc",
+              border: "1px solid #e0e6eb", borderRadius: 8,
+              fontSize: 13.5, color: form.phone ? "#30313d" : "#8898aa",
+              backgroundColor: "#f6f9fc",
             }}>
               {form.phone || "Aucun numéro configuré"}
             </div>
@@ -293,14 +273,14 @@ export default function ConfigPage() {
               disabled={!form.phone}
               style={{
                 padding: "11px 16px", borderRadius: 8,
-                border: "1px solid #e2e8f0", backgroundColor: "#fff",
+                border: "1px solid #e0e6eb", backgroundColor: "#fff",
                 fontSize: 13, fontWeight: 600,
-                color: form.phone ? "#334155" : "#cbd5e1",
+                color: form.phone ? "#30313d" : "#8898aa",
                 cursor: form.phone ? "pointer" : "not-allowed",
                 fontFamily: "inherit", flexShrink: 0,
               }}
             >
-              {copied ? "✓ Copié !" : "📋 Copier"}
+              {copied ? <><CheckCircle2 size={14} /> Copié !</> : <><Copy size={14} /> Copier</>}
             </button>
           </div>
           <div style={{
@@ -319,7 +299,7 @@ export default function ConfigPage() {
         <div style={{
           backgroundColor: "#fff", borderRadius: 14,
           border: "1px solid #fecaca",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          boxShadow: SH.md,
           overflow: "hidden",
         }}>
           <div style={{
@@ -327,13 +307,13 @@ export default function ConfigPage() {
             display: "flex", alignItems: "center", gap: 10,
             backgroundColor: "#fff5f5",
           }}>
-            <span style={{ fontSize: 18 }}>⚠️</span>
+            <AlertTriangle size={17} style={{ color: "#dc2626", flexShrink: 0 }} />
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", margin: 0 }}>
               Zone de danger
             </h3>
           </div>
           <div style={{ padding: "22px 24px" }}>
-            <p style={{ fontSize: 13.5, color: "#64748b", margin: "0 0 16px", lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13.5, color: "#6b7c93", margin: "0 0 16px", lineHeight: 1.6 }}>
               Pour supprimer votre compte ou réinitialiser vos données, contactez notre support.
               Ces actions sont irréversibles et nécessitent une confirmation manuelle.
             </p>
@@ -347,7 +327,7 @@ export default function ConfigPage() {
                 textDecoration: "none",
               }}
             >
-              📧 Contacter le support
+              <Mail size={14} /> Contacter le support
             </a>
           </div>
         </div>
@@ -377,7 +357,7 @@ export default function ConfigPage() {
             fontFamily: "inherit",
           }}
         >
-          {saved ? "✓ Sauvegardé !" : saving ? "⏳ Enregistrement…" : "💾 Sauvegarder"}
+          {saved ? <><CheckCircle2 size={15} /> Sauvegardé !</> : saving ? "Enregistrement…" : <><Save size={15} /> Sauvegarder</>}
         </button>
       </div>
 
@@ -385,7 +365,7 @@ export default function ConfigPage() {
       {toast && (
         <div style={{
           position: "fixed", bottom: 80, right: 32,
-          backgroundColor: "#0f172a", color: "#fff",
+          backgroundColor: "#30313d", color: "#fff",
           padding: "12px 20px", borderRadius: 10,
           fontSize: 13.5, fontWeight: 600,
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",

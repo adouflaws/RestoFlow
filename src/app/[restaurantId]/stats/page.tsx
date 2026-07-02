@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { LoadingScreen } from "@/components/dashboard/LoadingScreen";
+import { PlanBanner } from "@/components/dashboard/PlanBanner";
+import { SH } from "@/lib/ds";
+import { TrendingUp, Package, ShoppingCart, CheckCircle2, UtensilsCrossed } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface StatOrder {
@@ -38,38 +43,6 @@ function last7Days(): Date[] {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────
-const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%20souhaite%20passer%20au%20plan%20Pro.";
-
-function PlanBanner({ feature }: { feature: string }) {
-  return (
-    <div style={{ padding: "32px 32px" }}>
-      <div style={{
-        backgroundColor: "#fff", border: "1.5px solid #e2e8f0",
-        borderRadius: 16, padding: "48px 32px",
-        textAlign: "center" as const, maxWidth: 480, margin: "60px auto 0",
-        boxShadow: "0 4px 24px rgba(0,0,0,.06)",
-      }}>
-        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 10px" }}>
-          {feature}
-        </h2>
-        <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 24px", lineHeight: 1.6 }}>
-          Cette fonctionnalité est disponible à partir du plan <strong>Pro</strong>.
-          Passez au Pro pour débloquer toutes les statistiques de votre restaurant.
-        </p>
-        <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 8,
-            backgroundColor: "#1a4d2e", color: "#fff",
-            padding: "11px 24px", borderRadius: 8,
-            fontSize: 14, fontWeight: 700, textDecoration: "none",
-          }}>
-          💬 Passer au Pro →
-        </a>
-      </div>
-    </div>
-  );
-}
 
 export default function StatsPage() {
   const { restaurantId } = useParams<{ restaurantId: string }>();
@@ -135,46 +108,31 @@ export default function StatsPage() {
   // Mois en cours
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div style={{ textAlign: "center", color: "#94a3b8" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
-          <p style={{ fontSize: 14 }}>Calcul des statistiques…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Calcul des statistiques…" />;
 
   if (plan === "starter") {
-    return <PlanBanner feature="Statistiques avancées" />;
+    return (
+      <PlanBanner
+        feature="Statistiques avancées"
+        description="Disponible à partir du plan Pro. Passez au Pro pour débloquer toutes les statistiques de votre restaurant."
+      />
+    );
   }
 
   return (
     <>
-      {/* ── Header sticky ─────────────────────────────────────────── */}
-      <header style={{
-        position: "sticky", top: 0, zIndex: 50,
-        backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0",
-        padding: "0 32px", height: 64,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <div>
-          <h1 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0, letterSpacing: "-0.3px" }}>
-            Statistiques
-          </h1>
-          <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, marginTop: 1 }}>
-            {monthName.charAt(0).toUpperCase() + monthName.slice(1)} · {monthTotal} commandes
-          </p>
-        </div>
+      <PageHeader
+        title="Statistiques"
+        subtitle={`${monthName.charAt(0).toUpperCase() + monthName.slice(1)} · ${monthTotal} commandes`}
+      >
         <div style={{
-          fontSize: 12, color: "#94a3b8",
-          backgroundColor: "#f8fafc", border: "1px solid #e2e8f0",
+          fontSize: 12, color: "#8898aa",
+          backgroundColor: "#f6f9fc", border: "1px solid #e0e6eb",
           padding: "6px 12px", borderRadius: 20,
         }}>
           Ce mois-ci
         </div>
-      </header>
+      </PageHeader>
 
       {/* ── Contenu ───────────────────────────────────────────────── */}
       <div style={{ padding: "28px 32px" }}>
@@ -182,22 +140,22 @@ export default function StatsPage() {
         {/* ── KPI résumé du mois ────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 28 }}>
           {[
-            { icon: "💰", label: "CA du mois",    border: "#22c55e", value: `${fmt(monthCA)} FCFA` },
-            { icon: "📦", label: "Commandes",      border: "#3b82f6", value: String(monthTotal) },
-            { icon: "🛒", label: "Panier moyen",   border: "#f59e0b", value: avgBasket > 0 ? `${fmt(avgBasket)} F` : "—" },
-            { icon: "✅", label: "Taux livraison", border: "#94a3b8", value: `${delivRate} %` },
-          ].map(({ icon, label, border, value }) => (
+            { Icon: TrendingUp,   label: "CA du mois",    dot: "#1a4d2e", value: `${fmt(monthCA)} FCFA` },
+            { Icon: Package,      label: "Commandes",      dot: "#b45309", value: String(monthTotal) },
+            { Icon: ShoppingCart, label: "Panier moyen",   dot: "#8898aa", value: avgBasket > 0 ? `${fmt(avgBasket)} F` : "—" },
+            { Icon: CheckCircle2, label: "Taux livraison", dot: "#16a34a", value: `${delivRate} %` },
+          ].map(({ Icon, label, dot, value }) => (
             <div key={label} style={{
               backgroundColor: "#fff", borderRadius: 12,
-              borderLeft: `4px solid ${border}`,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
-              padding: "20px 20px 18px",
+              border: "1px solid #e0e6eb",
+              boxShadow: SH.sm,
+              padding: "16px 20px 18px",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 22 }}>{icon}</span>
-                <span style={{ fontSize: 12.5, color: "#64748b", fontWeight: 500 }}>{label}</span>
+                <Icon size={16} style={{ color: dot, flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, color: "#6b7c93", fontWeight: 500 }}>{label}</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.4px" }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#30313d", letterSpacing: "-0.4px" }}>
                 {value}
               </div>
             </div>
@@ -209,15 +167,15 @@ export default function StatsPage() {
           {/* ── Graphique CA 7 jours ─────────────────────────────── */}
           <div style={{
             backgroundColor: "#fff", borderRadius: 14,
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            border: "1px solid #e0e6eb",
+            boxShadow: SH.md,
             padding: "24px",
           }}>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#30313d", margin: "0 0 4px" }}>
                 CA des 7 derniers jours
               </h2>
-              <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Commandes livrées uniquement</p>
+              <p style={{ fontSize: 12, color: "#8898aa", margin: 0 }}>Commandes livrées uniquement</p>
             </div>
 
             {/* Barres CSS */}
@@ -231,7 +189,7 @@ export default function StatsPage() {
                     alignItems: "center", justifyContent: "flex-end", height: "100%",
                   }}>
                     <div style={{
-                      fontSize: 10, color: "#94a3b8", marginBottom: 4,
+                      fontSize: 10, color: "#8898aa", marginBottom: 4,
                       fontWeight: day.ca > 0 ? 600 : 400,
                     }}>
                       {day.ca > 0 ? (day.ca >= 1000 ? `${fmt(Math.round(day.ca / 1000))}k` : fmt(day.ca)) : ""}
@@ -246,13 +204,13 @@ export default function StatsPage() {
                       position: "relative",
                     }} />
                     <div style={{
-                      fontSize: 11, color: day.isToday ? "#0f172a" : "#94a3b8",
+                      fontSize: 11, color: day.isToday ? "#30313d" : "#8898aa",
                       marginTop: 6, fontWeight: day.isToday ? 700 : 400,
                     }}>
                       {day.label}
                     </div>
                     {day.count > 0 && (
-                      <div style={{ fontSize: 10, color: "#cbd5e1" }}>{day.count}cmd</div>
+                      <div style={{ fontSize: 10, color: "#8898aa" }}>{day.count}cmd</div>
                     )}
                   </div>
                 );
@@ -260,14 +218,14 @@ export default function StatsPage() {
             </div>
 
             {/* Légende */}
-            <div style={{ display: "flex", gap: 16, marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9" }}>
+            <div style={{ display: "flex", gap: 16, marginTop: 16, paddingTop: 14, borderTop: "1px solid #f4f5f6" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: "#1a4d2e" }} />
-                <span style={{ fontSize: 11.5, color: "#64748b" }}>Aujourd'hui</span>
+                <span style={{ fontSize: 11.5, color: "#6b7c93" }}>Aujourd'hui</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <div style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: "#bbf7d0" }} />
-                <span style={{ fontSize: 11.5, color: "#64748b" }}>Jours précédents</span>
+                <span style={{ fontSize: 11.5, color: "#6b7c93" }}>Jours précédents</span>
               </div>
             </div>
           </div>
@@ -275,45 +233,45 @@ export default function StatsPage() {
           {/* ── Top 5 plats ──────────────────────────────────────── */}
           <div style={{
             backgroundColor: "#fff", borderRadius: 14,
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            border: "1px solid #e0e6eb",
+            boxShadow: SH.md,
             padding: "24px",
           }}>
             <div style={{ marginBottom: 20 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: "#30313d", margin: "0 0 4px" }}>
                 Top 5 plats
               </h2>
-              <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Ce mois-ci</p>
+              <p style={{ fontSize: 12, color: "#8898aa", margin: 0 }}>Ce mois-ci</p>
             </div>
 
             {top5.length === 0 ? (
-              <div style={{ textAlign: "center", color: "#94a3b8", paddingTop: 32 }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🍽️</div>
+              <div style={{ textAlign: "center", color: "#8898aa", paddingTop: 32 }}>
+                <UtensilsCrossed size={32} style={{ color: "#8898aa", marginBottom: 8 }} />
                 <p style={{ fontSize: 13 }}>Aucune commande ce mois-ci</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {top5.map(([name, stats], i) => {
                   const pct = Math.round((stats.count / maxCount) * 100);
-                  const medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"];
+                  const rankColors = ["#1a4d2e","#16a34a","#4ade80","#86efac","#bbf7d0"];
                   return (
                     <div key={name}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <span style={{ fontSize: 14 }}>{medals[i]}</span>
+                          <span style={{ width: 20, height: 20, borderRadius: "50%", backgroundColor: rankColors[i], display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: i < 2 ? "#fff" : "#1a4d2e", flexShrink: 0 }}>{i + 1}</span>
                           <span style={{
-                            fontSize: 13, fontWeight: 600, color: "#334155",
+                            fontSize: 13, fontWeight: 600, color: "#30313d",
                             maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}>
                             {name}
                           </span>
                         </div>
-                        <span style={{ fontSize: 12.5, color: "#64748b", fontWeight: 700 }}>
+                        <span style={{ fontSize: 12.5, color: "#6b7c93", fontWeight: 700 }}>
                           {stats.count} cmd
                         </span>
                       </div>
                       <div style={{
-                        height: 6, backgroundColor: "#f1f5f9", borderRadius: 3, overflow: "hidden",
+                        height: 6, backgroundColor: "#f4f5f6", borderRadius: 3, overflow: "hidden",
                       }}>
                         <div style={{
                           height: "100%", width: `${pct}%`,
@@ -332,19 +290,19 @@ export default function StatsPage() {
         {/* ── Heures de pointe ─────────────────────────────────── */}
         <div style={{
           backgroundColor: "#fff", borderRadius: 14,
-          border: "1px solid #e2e8f0",
+          border: "1px solid #e0e6eb",
           boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
           padding: "24px",
         }}>
           <div style={{ marginBottom: 20 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", margin: "0 0 4px" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#30313d", margin: "0 0 4px" }}>
               Heures de pointe
             </h2>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Distribution des commandes par heure</p>
+            <p style={{ fontSize: 12, color: "#8898aa", margin: 0 }}>Distribution des commandes par heure</p>
           </div>
 
           {Object.keys(hourMap).length === 0 ? (
-            <div style={{ textAlign: "center", color: "#94a3b8", padding: "32px 0" }}>
+            <div style={{ textAlign: "center", color: "#8898aa", padding: "32px 0" }}>
               <p style={{ fontSize: 13 }}>Aucune donnée disponible</p>
             </div>
           ) : (
@@ -363,12 +321,12 @@ export default function StatsPage() {
                       width: "100%",
                       height: `${Math.max(pct, count > 0 ? 5 : 0)}%`,
                       minHeight: count > 0 ? 3 : 0,
-                      backgroundColor: isNow ? "#1a4d2e" : count > 0 ? "#bbf7d0" : "#f1f5f9",
+                      backgroundColor: isNow ? "#1a4d2e" : count > 0 ? "#bbf7d0" : "#f4f5f6",
                       borderRadius: "3px 3px 0 0",
                       transition: "height 0.3s ease",
                     }} />
                     <div style={{
-                      fontSize: 9.5, color: isNow ? "#0f172a" : "#cbd5e1",
+                      fontSize: 9.5, color: isNow ? "#30313d" : "#8898aa",
                       marginTop: 4, fontWeight: isNow ? 700 : 400,
                     }}>
                       {h}h
@@ -384,20 +342,20 @@ export default function StatsPage() {
             const peakHour = hours.reduce((best, h) => (hourMap[h] ?? 0) > (hourMap[best] ?? 0) ? h : best, hours[0]);
             return (
               <div style={{
-                marginTop: 16, paddingTop: 14, borderTop: "1px solid #f1f5f9",
+                marginTop: 16, paddingTop: 14, borderTop: "1px solid #f4f5f6",
                 display: "flex", gap: 24,
               }}>
                 <div>
-                  <span style={{ fontSize: 11.5, color: "#94a3b8" }}>Pic d'affluence</span>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{peakHour}h — {peakHour + 1}h</div>
+                  <span style={{ fontSize: 11.5, color: "#8898aa" }}>Pic d'affluence</span>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#30313d" }}>{peakHour}h — {peakHour + 1}h</div>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11.5, color: "#94a3b8" }}>Commandes à cette heure</span>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{hourMap[peakHour] ?? 0}</div>
+                  <span style={{ fontSize: 11.5, color: "#8898aa" }}>Commandes à cette heure</span>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#30313d" }}>{hourMap[peakHour] ?? 0}</div>
                 </div>
                 <div>
-                  <span style={{ fontSize: 11.5, color: "#94a3b8" }}>Commandes livrées</span>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a" }}>{delivered.length}</div>
+                  <span style={{ fontSize: 11.5, color: "#8898aa" }}>Commandes livrées</span>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#30313d" }}>{delivered.length}</div>
                 </div>
               </div>
             );

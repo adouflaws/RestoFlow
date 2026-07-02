@@ -4,14 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { SH } from "@/lib/ds";
 
-const G = "#1a4d2e";
+const G  = "#1a4d2e";
 const GH = "#246b3e";
+const TX  = "#30313d";
+const TX2 = "#6b7c93";
+const BRD = "#e0e6eb";
+const SRF = "#f6f9fc";
 
 const field: React.CSSProperties = {
   height: 44, width: "100%", borderRadius: 8,
-  border: "1px solid #e5e7eb", padding: "0 14px",
-  fontSize: 14, color: "#111827", outline: "none",
+  border: `1px solid ${BRD}`, padding: "0 14px",
+  fontSize: 14, color: TX, outline: "none",
   backgroundColor: "#fff", boxSizing: "border-box",
   fontFamily: "inherit",
 };
@@ -53,7 +58,7 @@ export default function LoginPage() {
   return (
     <div style={{
       minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center",
-      backgroundColor: "#f9fafb", fontFamily: "system-ui, Arial, sans-serif", padding: "24px",
+      backgroundColor: SRF, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif", padding: "24px",
     }}>
       <div style={{ width: "100%", maxWidth: 380 }}>
         {/* Logo */}
@@ -66,7 +71,7 @@ export default function LoginPage() {
           }}>
             RF
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.5px" }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: TX, letterSpacing: "-0.5px" }}>
             RestoFlow
           </div>
         </div>
@@ -74,19 +79,19 @@ export default function LoginPage() {
         {/* Carte */}
         <div style={{
           backgroundColor: "#fff", borderRadius: 14,
-          border: "1px solid #e5e7eb", padding: "36px 32px",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+          border: `1px solid ${BRD}`, padding: "36px 32px",
+          boxShadow: SH.md,
         }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "#111827", marginBottom: 6 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: TX, marginBottom: 6, letterSpacing: "-0.3px" }}>
             Connexion
           </h1>
-          <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 28 }}>
+          <p style={{ fontSize: 13, color: TX2, marginBottom: 28, lineHeight: 1.5 }}>
             Accédez à votre espace restaurant.
           </p>
 
           <form onSubmit={handleLogin} noValidate>
             <div style={{ marginBottom: 14 }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 5 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: TX2, marginBottom: 5 }}>
                 Email
               </label>
               <input
@@ -99,7 +104,7 @@ export default function LoginPage() {
 
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: TX2 }}>
                   Mot de passe
                 </label>
                 <button
@@ -159,7 +164,7 @@ export default function LoginPage() {
         </div>
 
         {/* Lien signup */}
-        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#6b7280" }}>
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: TX2 }}>
           Pas encore de compte ?{" "}
           <Link
             href="/signup"

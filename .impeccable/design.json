@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-29T00:00:00Z",
+  "title": "Design System: RestoFlow",
+  "extensions": {
+    "colorMeta": {
+      "brand": {
+        "role": "primary",
+        "displayName": "Vert Confiance Profond",
+        "canonical": "#1a4d2e",
+        "tonalRamp": ["#071810", "#0e2c1c", "#1a4d2e", "#216038", "#2a7444", "#3d9b5e", "#6ab889", "#a8d9bc", "#d4eedd"]
+      },
+      "brand-hover": {
+        "role": "primary-state",
+        "displayName": "Vert Confiance Hover",
+        "canonical": "#16a34a",
+        "tonalRamp": ["#073820", "#0d5a2d", "#16a34a", "#1db957", "#2ecc6d", "#5dd68d", "#8de4b0", "#bef0d3", "#e0f8ec"]
+      },
+      "danger": {
+        "role": "danger",
+        "displayName": "Rouge Danger",
+        "canonical": "#df1b41",
+        "tonalRamp": ["#5a0619", "#8f0b29", "#df1b41", "#e83a5c", "#ef6178", "#f48fa1", "#f8bbc7", "#fce0e6", "#fef0f3"]
+      },
+      "warning-amber": {
+        "role": "warning",
+        "displayName": "Ambre d'Alerte",
+        "canonical": "#b45309",
+        "tonalRamp": ["#4a2003", "#7a3806", "#b45309", "#d46b12", "#e8841e", "#f0a34a", "#f5bf7e", "#f9d9b1", "#fdeedd"]
+      },
+      "warning-red": {
+        "role": "urgency",
+        "displayName": "Rouge d'Urgence",
+        "canonical": "#dc2626",
+        "tonalRamp": ["#580d0d", "#8c1515", "#dc2626", "#e84040", "#f06464", "#f59090", "#f9bbbb", "#fcdcdc", "#feefef"]
+      },
+      "text-primary": {
+        "role": "neutral-text",
+        "displayName": "Gris Rédactionnel",
+        "canonical": "#30313d",
+        "tonalRamp": ["#111117", "#1e1f28", "#30313d", "#464757", "#5c5d72", "#8384a0", "#aaabc5", "#d0d1e3", "#eeeef6"]
+      },
+      "text-secondary": {
+        "role": "neutral-text-secondary",
+        "displayName": "Gris Intermédiaire",
+        "canonical": "#6b7c93",
+        "tonalRamp": ["#1b2230", "#2e3d52", "#6b7c93", "#7d90a8", "#94a4bc", "#b0bccc", "#ccd4df", "#e2e7ee", "#f2f4f7"]
+      },
+      "text-tertiary": {
+        "role": "neutral-text-tertiary",
+        "displayName": "Gris Silencieux",
+        "canonical": "#8898aa",
+        "tonalRamp": ["#232d38", "#384755", "#8898aa", "#96a6b7", "#a7b5c4", "#bec8d4", "#d4dbe3", "#e8ecf0", "#f4f6f8"]
+      },
+      "surface-white": {
+        "role": "neutral-bg",
+        "displayName": "Blanc Pur",
+        "canonical": "#ffffff",
+        "tonalRamp": ["#d8d8d8", "#e4e4e4", "#eeeeee", "#f4f4f4", "#f8f8f8", "#fafafa", "#fcfcfc", "#fefefe", "#ffffff"]
+      },
+      "surface-base": {
+        "role": "neutral-surface",
+        "displayName": "Gris Surface",
+        "canonical": "#f6f9fc",
+        "tonalRamp": ["#c2cdd6", "#d0dae4", "#dee7f0", "#e7eff6", "#f0f5fa", "#f6f9fc", "#f9fbfd", "#fcfdfe", "#ffffff"]
+      },
+      "border": {
+        "role": "neutral-border",
+        "displayName": "Gris Bordure",
+        "canonical": "#e0e6eb",
+        "tonalRamp": ["#9aaab6", "#b4c1cc", "#c8d2da", "#d8e0e7", "#e0e6eb", "#e8edf1", "#f0f3f6", "#f6f8fa", "#fcfdfe"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headlines sur la landing page uniquement." },
+      "headline": { "displayName": "Headline", "purpose": "Titres de section sur la landing page. Jamais dans le dashboard." },
+      "title": { "displayName": "Title", "purpose": "Titres de page, titres de modal, headers de section dans le dashboard." },
+      "body": { "displayName": "Body", "purpose": "Tout le texte courant. Max 65-75ch sur les surfaces marketing." },
+      "label": { "displayName": "Label", "purpose": "Texte des boutons, labels de formulaire, headers de tableau, texte de nav." },
+      "caption": { "displayName": "Caption", "purpose": "Timestamps, métadonnées, fine print. Jamais pour l'information primaire." }
+    },
+    "shadows": [
+      {
+        "name": "ambient",
+        "value": "0px 1px 1px rgba(0,0,0,0.03), 0px 3px 6px rgba(18,42,66,0.02)",
+        "purpose": "Cartes et conteneurs au repos. Presque invisible. Séparation sans poids visuel."
+      },
+      {
+        "name": "elevated",
+        "value": "0 2px 5px 0 rgba(50,50,93,0.10), 0 1px 1px 0 rgba(0,0,0,0.07)",
+        "purpose": "Cartes survolées, dropdowns, popovers. Séparation claire de la surface."
+      },
+      {
+        "name": "modal",
+        "value": "0 30px 60px rgba(0,0,0,0.12), 0 0 0 1px rgba(50,50,93,0.05)",
+        "purpose": "Dialogues et drawers plein écran. Le ring de 1px prévient le saignement sur fond blanc."
+      },
+      {
+        "name": "focus",
+        "value": "0 0 0 2px rgba(26,77,46,0.30)",
+        "purpose": "Focus ring clavier sur tous les éléments interactifs. Indicateur universel du système."
+      }
+    ],
+    "motion": [
+      {
+        "name": "standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Transitions d'état standard (background-color, box-shadow, border-color)."
+      },
+      {
+        "name": "exit",
+        "value": "cubic-bezier(0.0, 0, 0.2, 1)",
+        "purpose": "Éléments qui quittent l'écran (drawer close, toast dismiss)."
+      }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "375px", "purpose": "Écran de référence mobile. Design jugé ici en premier." },
+      { "name": "tablet", "value": "768px", "purpose": "Breakpoint principal. Master-detail layout s'active ici." },
+      { "name": "desktop", "value": "1024px", "purpose": "Layout large. Sidebar + main content + detail panel." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Bouton Primaire",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Action principale de la page. Un seul par écran.",
+      "html": "<button class=\"ds-btn-primary\">Commencer</button>",
+      "css": ".ds-btn-primary { background-color: #1a4d2e; color: #ffffff; padding: 9px 18px; min-height: 44px; font-size: 13px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-primary:hover { background-color: #16a34a; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(26,77,46,0.30); } .ds-btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }"
+    },
+    {
+      "name": "Bouton Ghost",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Action secondaire. Toujours en complément d'un bouton primaire, jamais seul.",
+      "html": "<button class=\"ds-btn-ghost\">Annuler</button>",
+      "css": ".ds-btn-ghost { background-color: transparent; color: #1a4d2e; padding: 9px 18px; min-height: 44px; font-size: 13px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; border: 1px solid #1a4d2e; border-radius: 6px; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-ghost:hover { background-color: #f6f9fc; } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(26,77,46,0.30); }"
+    },
+    {
+      "name": "Bouton Danger",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Actions destructives irréversibles uniquement (annulation, suppression).",
+      "html": "<button class=\"ds-btn-danger\">Annuler la commande</button>",
+      "css": ".ds-btn-danger { background-color: #df1b41; color: #ffffff; padding: 9px 18px; min-height: 44px; font-size: 13px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-danger:hover { background-color: #b91334; } .ds-btn-danger:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(223,27,65,0.30); }"
+    },
+    {
+      "name": "Carte",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Conteneur standard. Fond blanc sur surface grise.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-title\">Titre</p><p class=\"ds-card-body\">Contenu de la carte.</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e0e6eb; border-radius: 8px; padding: 24px; box-shadow: 0px 1px 1px rgba(0,0,0,0.03), 0px 3px 6px rgba(18,42,66,0.02); transition: box-shadow 200ms ease-out, border-color 200ms ease-out; } .ds-card:hover { box-shadow: 0 2px 5px 0 rgba(50,50,93,0.10), 0 1px 1px 0 rgba(0,0,0,0.07); border-color: #c8d2da; } .ds-card-title { font-size: 15px; font-weight: 700; color: #30313d; margin: 0 0 8px 0; } .ds-card-body { font-size: 14px; color: #6b7c93; margin: 0; line-height: 1.5; }"
+    },
+    {
+      "name": "Champ de saisie",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Input texte standard. 4px radius (Stripe-strict). 44px minimum de hauteur.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-input-demo\">Nom du restaurant</label><input class=\"ds-input\" id=\"ds-input-demo\" type=\"text\" placeholder=\"Ex: Le Manding d'Or\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; } .ds-label { font-size: 13px; font-weight: 500; color: #30313d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; } .ds-input { height: 44px; padding: 10px 12px; font-size: 14px; color: #30313d; background: #ffffff; border: 1px solid #e0e6eb; border-radius: 4px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; transition: border-color 150ms ease-out, box-shadow 150ms ease-out; box-sizing: border-box; width: 100%; } .ds-input::placeholder { color: #8898aa; } .ds-input:focus { outline: none; border-color: #1a4d2e; box-shadow: 0 0 0 2px rgba(26,77,46,0.30); } .ds-input:disabled { background: #f4f5f6; color: #8898aa; cursor: not-allowed; }"
+    },
+    {
+      "name": "Badge Statut",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Indicateur de statut de commande. Pill 20px, 5 états.",
+      "html": "<span class=\"ds-badge ds-badge--preparing\">En préparation</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; white-space: nowrap; } .ds-badge--pending { background: #f4f5f6; color: #8898aa; } .ds-badge--preparing { background: #fff8e6; color: #b45309; } .ds-badge--ready { background: #e8f0fd; color: #2e6da4; } .ds-badge--delivered { background: #ecfdf5; color: #16a34a; } .ds-badge--cancelled { background: #fef2f2; color: #df1b41; }"
+    },
+    {
+      "name": "Carte Commande (urgence neutre)",
+      "kind": "card",
+      "description": "Carte commande au repos. Attente < 5 minutes.",
+      "html": "<button class=\"ds-order-card ds-order-card--neutral\"><div class=\"ds-order-header\"><span class=\"ds-order-id\">#CMD-042</span><span class=\"ds-order-timer\">3 min</span></div><div class=\"ds-order-client\">Aminata K.</div><span class=\"ds-badge ds-badge--pending\">En attente</span></button>",
+      "css": ".ds-order-card { width: 100%; background: #ffffff; border: 1px solid #e0e6eb; border-radius: 8px; padding: 16px; text-align: left; cursor: pointer; transition: box-shadow 150ms ease-out, border-color 150ms ease-out; } .ds-order-card--neutral { background: #ffffff; border-color: #e0e6eb; } .ds-order-card--amber { background: #fffbeb; border-color: #fde68a; } .ds-order-card--red { background: #fef2f2; border-color: #fecaca; } .ds-order-card:hover { box-shadow: 0 2px 5px 0 rgba(50,50,93,0.10), 0 1px 1px 0 rgba(0,0,0,0.07); } .ds-order-card:focus-visible { outline: none; box-shadow: 0 0 0 2px rgba(26,77,46,0.30); } .ds-order-header { display: flex; justify-content: space-between; margin-bottom: 6px; } .ds-order-id { font-size: 13px; font-weight: 600; color: #30313d; } .ds-order-timer { font-size: 12px; font-weight: 600; color: #8898aa; } .ds-order-card--amber .ds-order-timer { color: #b45309; } .ds-order-card--red .ds-order-timer { color: #dc2626; } .ds-order-client { font-size: 13px; color: #6b7c93; margin-bottom: 10px; }"
+    },
+    {
+      "name": "KPI Card",
+      "kind": "card",
+      "description": "Carte métrique du dashboard. Dot coloré en lieu de border-left.",
+      "html": "<div class=\"ds-kpi\"><div class=\"ds-kpi-dot ds-kpi-dot--brand\"></div><div class=\"ds-kpi-value\">24</div><div class=\"ds-kpi-label\">Commandes aujourd'hui</div></div>",
+      "css": ".ds-kpi { background: #ffffff; border: 1px solid #e0e6eb; border-radius: 8px; padding: 16px 20px; box-shadow: 0px 1px 1px rgba(0,0,0,0.03), 0px 3px 6px rgba(18,42,66,0.02); } .ds-kpi-dot { width: 6px; height: 6px; border-radius: 50%; margin-bottom: 10px; } .ds-kpi-dot--brand { background: #1a4d2e; } .ds-kpi-dot--amber { background: #b45309; } .ds-kpi-dot--danger { background: #df1b41; } .ds-kpi-value { font-size: 24px; font-weight: 800; color: #30313d; line-height: 1; margin-bottom: 4px; } .ds-kpi-label { font-size: 12px; font-weight: 500; color: #6b7c93; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Caisse Enregistreuse Moderne",
+    "overview": "RestoFlow's visual system is built like a well-designed cash register: every element is there because it does a job. Nothing decorates. Nothing performs. The owner of a maquis in Bamako opens the dashboard mid-service, glances at the screen, takes an action, and goes back to the grill. The interface should never make them think about the interface.\n\nThe system is product-register first. On the dashboard (/[restaurantId]/*), color is information, not branding. Green means action. Amber means wait. Red means act now. The landing page (/) is the one place where brand energy is permitted; everywhere else the goal is clarity at a glance.\n\nThis system rejects everything it doesn't need. No purple-blue SaaS gradients. No 'Supercharge your workflow' energy. No telco palette (MTN yellow, Orange red, Wave blue-purple). No generic dark dashboard with colored sidebar chrome.",
+    "keyCharacteristics": [
+      "Functional density over breathing room — information per pixel matters on a phone screen",
+      "Color as signal, never decoration — four color roles, each with a distinct job",
+      "One obvious next action per screen — hierarchy through layout, not decoration",
+      "Ambient shadows, flat at rest — elevation only on modals and drawers",
+      "System sans typography — no web fonts loaded; renders in under 50ms on 3G"
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "Vert Confiance Profond (#1a4d2e) appears on 10% or less of any given screen. One primary button, one active nav item, one focus ring. Its scarcity is what makes it trustworthy.",
+        "section": "colors"
+      },
+      {
+        "name": "The Four-Color Signal Rule",
+        "body": "The urgency system uses exactly four states: neutral (white), mild urgency (amber #fffbeb), high urgency (red #fef2f2), and resolved (white again). No additional tints.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Web-Font Rule",
+        "body": "Never add a Google Fonts or Typekit import. The system sans stack renders correctly and instantly on every device in the target market.",
+        "section": "typography"
+      },
+      {
+        "name": "The 65ch Rule",
+        "body": "Body text on marketing surfaces caps at 65-75ch per line. On desktop enforce max-width: 65ch on paragraph containers.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "Surfaces are flat at rest. Shadows appear only as a response to state (hover, lift, focus) or layer (modal above page).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use box-shadow: 0 0 0 2px rgba(26,77,46,0.30) on every :focus-visible state.",
+      "Do use min-height: 44px on every interactive element.",
+      "Do keep Vert Confiance Profond (#1a4d2e) on 10% or less of screen surface.",
+      "Do use prefers-reduced-motion: reduce to disable all CSS transitions and animations.",
+      "Do use text-wrap: balance on headings (H1, H2, H3).",
+      "Do express urgency through background and border color (amber/red tints), not through additional icons.",
+      "Do use the system sans font stack only. Never introduce a web font import.",
+      "Do distinguish page background (#f6f9fc) from card background (#ffffff)."
+    ],
+    "donts": [
+      "Don't use border-left or border-right greater than 1px as a colored accent on cards, callouts, or list items.",
+      "Don't use purple, blue, or gradient-heavy palettes. RestoFlow is not a generic US SaaS.",
+      "Don't use MTN yellow, Orange red, or Wave blue-purple.",
+      "Don't use background-clip: text with gradient fills.",
+      "Don't use glassmorphism (backdrop-filter blur) as a default surface treatment.",
+      "Don't build KPI cards with border-left: 3px solid [accent].",
+      "Don't use the hero-metric template (big number, small label, gradient accent).",
+      "Don't render identical card grids.",
+      "Don't reach for a modal as the first solution.",
+      "Don't load fonts from Google Fonts, Typekit, or any CDN.",
+      "Don't use transition: all anywhere in the codebase."
+    ]
+  }
+}

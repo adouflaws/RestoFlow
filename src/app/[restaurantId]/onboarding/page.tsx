@@ -3,15 +3,20 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  Bot, Store, Clock, UtensilsCrossed, Truck, CheckCircle2,
+  Lightbulb, MapPin, Megaphone, AlertCircle,
+} from "lucide-react";
 
 // ─── Palette ───────────────────────────────────────────────────────────────
-const G = "#1a4d2e";
+const G  = "#1a4d2e";
 const GL = "#edf7f1";
 const GB = "#c3dece";
-const TX = "#111827";
-const SB = "#6b7280";
-const BR = "#e5e7eb";
-const BG = "#f9fafb";
+const TX = "#30313d";
+const SB = "#6b7c93";
+const TX3 = "#8898aa";
+const BR = "#e0e6eb";
+const BG = "#f6f9fc";
 const RD = "#dc2626";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -54,7 +59,7 @@ const inputSt: React.CSSProperties = {
 };
 
 const labelSt: React.CSSProperties = {
-  display: "block", fontSize: 13, fontWeight: 600, color: "#374151", marginBottom: 6,
+  display: "block", fontSize: 13, fontWeight: 600, color: SB, marginBottom: 6,
 };
 
 function Tip({ text }: { text: string }) {
@@ -65,7 +70,7 @@ function Tip({ text }: { text: string }) {
       fontSize: 13, color: G, lineHeight: 1.7,
       display: "flex", gap: 10, alignItems: "flex-start",
     }}>
-      <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>💡</span>
+      <Lightbulb size={16} style={{ flexShrink: 0, marginTop: 2, color: G }} />
       <span>{text}</span>
     </div>
   );
@@ -247,7 +252,7 @@ export default function OnboardingPage() {
                   <div style={{
                     width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
                     backgroundColor: done || active ? G : "#e5e7eb",
-                    color: done || active ? "#fff" : "#9ca3af",
+                    color: done || active ? "#fff" : TX3,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: done ? 15 : 13, fontWeight: 700,
                     boxShadow: active ? `0 0 0 3px ${GL}, 0 0 0 5px ${GB}` : "none",
@@ -257,7 +262,7 @@ export default function OnboardingPage() {
                   </div>
                   <span style={{
                     fontSize: 10, whiteSpace: "nowrap",
-                    color: active ? G : done ? "#374151" : "#9ca3af",
+                    color: active ? G : done ? TX : TX3,
                     fontWeight: active ? 700 : 400,
                   }}>
                     {label}
@@ -282,7 +287,9 @@ export default function OnboardingPage() {
   function renderStep1() {
     return (
       <div style={{ textAlign: "center", paddingTop: 12 }}>
-        <div style={{ fontSize: 72, marginBottom: 20, lineHeight: 1 }}>🤖</div>
+        <div style={{ marginBottom: 20, color: G, display: "flex", justifyContent: "center" }}>
+        <Bot size={72} strokeWidth={1} />
+      </div>
         <h1 style={{ fontSize: 28, fontWeight: 800, color: TX, marginBottom: 12, lineHeight: 1.3 }}>
           Bienvenue sur <span style={{ color: G }}>RestoFlow</span>
           {restoName ? `, ${restoName}` : ""} !
@@ -299,15 +306,15 @@ export default function OnboardingPage() {
           <p style={{ fontSize: 13, fontWeight: 700, color: SB, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 20 }}>
             Ce qu'on va configurer ensemble :
           </p>
-          {[
-            ["🏪", "Profil du restaurant",     "Nom, adresse, spécialité"],
-            ["🕐", "Horaires d'ouverture",      "7 jours, heure par heure"],
-            ["🍽️", "Menu & prix",              "Plats, boissons, prix en FCFA"],
-            ["🛵", "Zones de livraison",        "Quartiers et frais de livraison"],
-            ["✅", "Assistant WhatsApp actif", "Prêt à recevoir des commandes"],
-          ].map(([icon, title, desc]) => (
+          {([
+            [Store,           "Profil du restaurant",     "Nom, adresse, spécialité"],
+            [Clock,           "Horaires d'ouverture",     "7 jours, heure par heure"],
+            [UtensilsCrossed, "Menu & prix",              "Plats, boissons, prix en FCFA"],
+            [Truck,           "Zones de livraison",       "Quartiers et frais de livraison"],
+            [CheckCircle2,    "Assistant WhatsApp actif", "Prêt à recevoir des commandes"],
+          ] as [React.ElementType, string, string][]).map(([Icon, title, desc]) => (
             <div key={title} style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-              <span style={{ fontSize: 24, width: 32, flexShrink: 0 }}>{icon}</span>
+              <Icon size={22} style={{ color: G, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: TX }}>{title}</div>
                 <div style={{ fontSize: 12, color: SB }}>{desc}</div>
@@ -438,7 +445,7 @@ export default function OnboardingPage() {
                   }} />
                 </div>
 
-                <span style={{ fontSize: 12, fontWeight: 700, width: 44, flexShrink: 0, color: h.open ? G : "#9ca3af" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, width: 44, flexShrink: 0, color: h.open ? G : TX3 }}>
                   {h.open ? "Ouvert" : "Fermé"}
                 </span>
 
@@ -469,7 +476,7 @@ export default function OnboardingPage() {
           padding: "12px 16px", fontSize: 13, color: G, textAlign: "center",
         }}>
           {openCount === 0
-            ? "⚠️ Aucun jour d'ouverture sélectionné"
+            ? "Aucun jour d'ouverture sélectionné"
             : `✓ Ouvert ${openCount} jour${openCount > 1 ? "s" : ""} par semaine`}
         </div>
 
@@ -539,7 +546,7 @@ export default function OnboardingPage() {
             disabled={!canAdd}
             style={{
               backgroundColor: canAdd ? G : "#e5e7eb",
-              color: canAdd ? "#fff" : "#9ca3af",
+              color: canAdd ? "#fff" : TX3,
               border: "none", borderRadius: 8, padding: "10px 22px",
               fontSize: 13, fontWeight: 700, cursor: canAdd ? "pointer" : "not-allowed",
               transition: "background-color 0.15s",
@@ -556,7 +563,9 @@ export default function OnboardingPage() {
             border: `2px dashed ${BR}`, borderRadius: 14,
             color: SB, fontSize: 14,
           }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div>
+            <div style={{ marginBottom: 12, color: TX3, display: "flex", justifyContent: "center" }}>
+              <UtensilsCrossed size={40} strokeWidth={1.5} />
+            </div>
             Aucun plat ajouté — ajoutez au moins 1 plat pour continuer
           </div>
         ) : (
@@ -628,10 +637,10 @@ export default function OnboardingPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-          {[
-            { value: true,  icon: "🛵", title: "Oui, je livre",    desc: "Je propose la livraison à domicile dans certains quartiers" },
-            { value: false, icon: "🏪", title: "Non, à emporter",  desc: "Les clients viennent chercher leur commande au restaurant" },
-          ].map((opt) => (
+          {([
+            { value: true,  Icon: Truck, title: "Oui, je livre",   desc: "Je propose la livraison à domicile dans certains quartiers" },
+            { value: false, Icon: Store, title: "Non, à emporter", desc: "Les clients viennent chercher leur commande au restaurant" },
+          ] as { value: boolean; Icon: React.ElementType; title: string; desc: string }[]).map((opt) => (
             <div
               key={String(opt.value)}
               onClick={() => setHasDelivery(opt.value)}
@@ -642,7 +651,9 @@ export default function OnboardingPage() {
                 textAlign: "center", transition: "all 0.15s",
               }}
             >
-              <div style={{ fontSize: 42, marginBottom: 10 }}>{opt.icon}</div>
+              <div style={{ marginBottom: 10, display: "flex", justifyContent: "center", color: hasDelivery === opt.value ? G : TX3 }}>
+                <opt.Icon size={42} strokeWidth={1.5} />
+              </div>
               <div style={{ fontSize: 15, fontWeight: 700, color: TX, marginBottom: 6 }}>{opt.title}</div>
               <div style={{ fontSize: 12, color: SB, lineHeight: 1.5 }}>{opt.desc}</div>
               {hasDelivery === opt.value && (
@@ -698,7 +709,7 @@ export default function OnboardingPage() {
                 disabled={!canAddZone}
                 style={{
                   backgroundColor: canAddZone ? G : "#e5e7eb",
-                  color: canAddZone ? "#fff" : "#9ca3af",
+                  color: canAddZone ? "#fff" : TX3,
                   border: "none", borderRadius: 8, padding: "10px 22px",
                   fontSize: 13, fontWeight: 700, cursor: canAddZone ? "pointer" : "not-allowed",
                 }}
@@ -719,8 +730,9 @@ export default function OnboardingPage() {
                       borderBottom: i < zones.length - 1 ? `1px solid ${BR}` : "none",
                     }}
                   >
-                    <span style={{ fontSize: 14, fontWeight: 600, color: TX }}>
-                      📍 {z.nom}
+                    <span style={{ fontSize: 14, fontWeight: 600, color: TX, display: "flex", alignItems: "center", gap: 6 }}>
+                      <MapPin size={14} style={{ color: SB, flexShrink: 0 }} />
+                      {z.nom}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: G }}>
@@ -759,7 +771,9 @@ export default function OnboardingPage() {
             backgroundColor: GL, border: `1px solid ${GB}`,
             borderRadius: 12, padding: "20px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+            <div style={{ marginBottom: 8, display: "flex", justifyContent: "center" }}>
+              <CheckCircle2 size={32} style={{ color: G }} />
+            </div>
             <p style={{ fontSize: 14, color: G, fontWeight: 600, margin: 0 }}>
               Parfait ! Votre bot précisera aux clients qu'ils doivent venir récupérer leur commande sur place.
             </p>
@@ -787,8 +801,8 @@ export default function OnboardingPage() {
           ✓
         </div>
 
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: TX, marginBottom: 10 }}>
-          Félicitations ! 🎉
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: TX, marginBottom: 10, letterSpacing: "-0.4px" }}>
+          Félicitations !
         </h1>
         <p style={{ fontSize: 15, color: SB, lineHeight: 1.7, marginBottom: 36 }}>
           Votre assistant WhatsApp est configuré et prêt à recevoir des commandes.
@@ -802,18 +816,18 @@ export default function OnboardingPage() {
           <p style={{ fontSize: 12, fontWeight: 700, color: SB, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 20 }}>
             Résumé de votre configuration
           </p>
-          {[
-            ["🏪", "Restaurant",           restoName || name || "—"],
-            ["🍽️", "Plats configurés",    `${items.length} plat${items.length > 1 ? "s" : ""}`],
-            ["🕐", "Jours d'ouverture",    `${openDays} jour${openDays > 1 ? "s" : ""} par semaine`],
-            ["🛵", "Mode de livraison",
+          {([
+            [Store,           "Restaurant",        restoName || name || "—"],
+            [UtensilsCrossed, "Plats configurés",  `${items.length} plat${items.length > 1 ? "s" : ""}`],
+            [Clock,           "Jours d'ouverture", `${openDays} jour${openDays > 1 ? "s" : ""} par semaine`],
+            [Truck,           "Mode de livraison",
               hasDelivery
                 ? (zones.length > 0 ? `${zones.length} zone${zones.length > 1 ? "s" : ""} de livraison` : "Livraison (zones à configurer)")
                 : "À emporter uniquement",
             ],
-          ].map(([icon, label, value]) => (
+          ] as [React.ElementType, string, string][]).map(([Icon, label, value]) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-              <span style={{ fontSize: 26, width: 34, flexShrink: 0 }}>{icon}</span>
+              <Icon size={22} style={{ color: G, flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 12, color: SB }}>{label}</div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: TX }}>{value}</div>
@@ -827,9 +841,11 @@ export default function OnboardingPage() {
           backgroundColor: GL, border: `1px solid ${GB}`,
           borderRadius: 14, padding: "20px 24px", marginBottom: 8,
         }}>
-          <p style={{ fontSize: 14, color: G, lineHeight: 1.7, margin: 0, fontWeight: 600 }}>
-            📣 Partagez votre numéro WhatsApp Business avec vos clients.<br />
-            <span style={{ fontWeight: 400 }}>Ils peuvent déjà passer des commandes automatiquement !</span>
+          <p style={{ fontSize: 14, color: G, lineHeight: 1.7, margin: 0, fontWeight: 600, display: "flex", alignItems: "flex-start", gap: 8, textAlign: "left" }}>
+            <Megaphone size={16} style={{ flexShrink: 0, marginTop: 3 }} />
+            <span>Partagez votre numéro WhatsApp Business avec vos clients.<br />
+              <span style={{ fontWeight: 400 }}>Ils peuvent déjà passer des commandes automatiquement !</span>
+            </span>
           </p>
         </div>
       </div>
@@ -850,7 +866,7 @@ export default function OnboardingPage() {
     /* Overlay plein écran (flex colonne) par-dessus le layout sidebar */
     <div style={{
       position: "fixed", inset: 0, backgroundColor: "#fff", zIndex: 1000,
-      fontFamily: "system-ui, Arial, sans-serif",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
       display: "flex", flexDirection: "column",
     }}>
       {/* Barre de progression — haut, sans scroll */}
@@ -867,7 +883,7 @@ export default function OnboardingPage() {
               backgroundColor: "#fef2f2", border: "1px solid #fecaca",
               color: RD, fontSize: 13, lineHeight: 1.6,
             }}>
-              ⚠️ {error}
+              {error}
             </div>
           )}
         </div>
@@ -901,7 +917,7 @@ export default function OnboardingPage() {
           disabled={disabled}
           style={{
             backgroundColor: disabled ? "#e5e7eb" : G,
-            color: disabled ? "#9ca3af" : "#fff",
+            color: disabled ? TX3 : "#fff",
             border: "none", borderRadius: 8,
             padding: step === 1 || step === 6 ? "14px 40px" : "12px 28px",
             fontSize: step === 1 || step === 6 ? 15 : 14,

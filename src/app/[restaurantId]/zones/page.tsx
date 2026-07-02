@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LoadingScreen } from "@/components/dashboard/LoadingScreen";
+import { SH } from "@/lib/ds";
+import { Map, CheckCircle2, DollarSign, MessageCircle, MapPin, Trash2 } from "lucide-react";
 
 interface Zone {
   id: string;
@@ -24,7 +27,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
       aria-checked={on}
       style={{
         width: 44, height: 24, borderRadius: 12, flexShrink: 0,
-        backgroundColor: on ? "#22c55e" : "#cbd5e1",
+        backgroundColor: on ? "#22c55e" : "#8898aa",
         position: "relative", cursor: "pointer",
         transition: "background-color 0.2s",
       }}
@@ -120,64 +123,55 @@ export default function ZonesPage() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "9px 12px",
-    border: "1px solid #e2e8f0", borderRadius: 8,
+    border: "1px solid #e0e6eb", borderRadius: 8,
     fontSize: 13.5, outline: "none", boxSizing: "border-box",
-    fontFamily: "inherit", color: "#0f172a",
+    fontFamily: "inherit", color: "#30313d",
   };
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: 12, fontWeight: 600,
-    color: "#64748b", marginBottom: 5,
+    color: "#6b7c93", marginBottom: 5,
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div style={{ textAlign: "center", color: "#94a3b8" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🗺️</div>
-          <p style={{ fontSize: 14 }}>Chargement des zones…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Chargement des zones…" />;
 
   return (
     <>
       {/* ── Header sticky ─────────────────────────────────────────── */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
-        backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0",
+        backgroundColor: "#fff", borderBottom: "1px solid #e0e6eb",
         padding: "0 32px",
       }}>
         <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0, letterSpacing: "-0.3px" }}>
+            <h1 style={{ fontSize: 17, fontWeight: 700, color: "#30313d", margin: 0, letterSpacing: "-0.3px" }}>
               Zones de livraison
             </h1>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, marginTop: 1 }}>
+            <p style={{ fontSize: 12, color: "#8898aa", margin: 0, marginTop: 1 }}>
               {zones.length} zone{zones.length !== 1 ? "s" : ""} · {zones.filter(z => z.actif).length} actives
             </p>
           </div>
 
           {plan === "starter" && zones.length >= 1 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>Limite Starter : 1 zone</span>
+              <span style={{ fontSize: 12, color: "#8898aa" }}>Limite Starter : 1 zone</span>
               <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
                 style={{
                   backgroundColor: "#1a4d2e", color: "#fff", border: "none",
                   borderRadius: 8, padding: "9px 18px", fontSize: 13, fontWeight: 700,
                   textDecoration: "none", cursor: "pointer",
                 }}>
-                💬 Passer au Pro
+                <MessageCircle size={13} /> Passer au Pro
               </a>
             </div>
           ) : (
             <button
               onClick={() => setShowForm(!showForm)}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#6b7c93" : "#16a34a")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#6b7c93" : "#1a4d2e")}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
-                backgroundColor: showForm ? "#64748b" : "#1a4d2e",
+                backgroundColor: showForm ? "#6b7c93" : "#1a4d2e",
                 color: "#fff", border: "none", borderRadius: 8,
                 padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
                 cursor: "pointer", transition: "background-color 0.15s",
@@ -197,11 +191,11 @@ export default function ZonesPage() {
         {showForm && (
           <div style={{
             backgroundColor: "#fff", borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            border: "1px solid #e0e6eb",
+            boxShadow: SH.lg,
             padding: "24px 28px", marginBottom: 28,
           }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: "0 0 20px" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#30313d", margin: "0 0 20px" }}>
               Nouvelle zone de livraison
             </h3>
             <form onSubmit={handleAdd}>
@@ -234,7 +228,7 @@ export default function ZonesPage() {
                     onChange={(e) => setForm({ ...form, quartiers: e.target.value })}
                     style={inputStyle}
                   />
-                  <p style={{ fontSize: 11.5, color: "#94a3b8", margin: "5px 0 0" }}>
+                  <p style={{ fontSize: 11.5, color: "#8898aa", margin: "5px 0 0" }}>
                     Séparez les quartiers par des virgules
                   </p>
                 </div>
@@ -255,8 +249,8 @@ export default function ZonesPage() {
                 <button
                   type="button" onClick={() => setShowForm(false)}
                   style={{
-                    backgroundColor: "#f8fafc", color: "#64748b",
-                    border: "1px solid #e2e8f0", borderRadius: 8,
+                    backgroundColor: "#f6f9fc", color: "#6b7c93",
+                    border: "1px solid #e0e6eb", borderRadius: 8,
                     padding: "10px 18px", fontSize: 13.5, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -272,13 +266,13 @@ export default function ZonesPage() {
         {zones.length === 0 ? (
           <div style={{
             backgroundColor: "#fff", borderRadius: 16,
-            border: "1px solid #e2e8f0", padding: "80px 32px", textAlign: "center",
+            border: "1px solid #e0e6eb", padding: "80px 32px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>🗺️</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
+            <Map size={48} style={{ color: "#8898aa", marginBottom: 20 }} />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#30313d", marginBottom: 10 }}>
               Aucune zone configurée
             </h2>
-            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
+            <p style={{ fontSize: 14, color: "#6b7c93", marginBottom: 24 }}>
               Créez vos zones de livraison pour que le bot propose les bonnes options à vos clients.
             </p>
             <button
@@ -297,21 +291,22 @@ export default function ZonesPage() {
             {/* Stats rapides */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 28 }}>
               {[
-                { label: "Zones configurées", value: zones.length, icon: "🗺️", color: "#3b82f6" },
-                { label: "Zones actives", value: zones.filter(z => z.actif).length, icon: "✅", color: "#22c55e" },
-                { label: "Frais moyen", value: zones.length > 0 ? `${fmt(Math.round(zones.reduce((s,z) => s+z.frais,0)/zones.length))} F` : "—", icon: "💰", color: "#f59e0b" },
-              ].map(({ label, value, icon, color }) => (
+                { label: "Zones configurées", value: zones.length, Icon: Map,         color: "#6b7c93" },
+                { label: "Zones actives", value: zones.filter(z => z.actif).length, Icon: CheckCircle2, color: "#16a34a" },
+                { label: "Frais moyen", value: zones.length > 0 ? `${fmt(Math.round(zones.reduce((s,z) => s+z.frais,0)/zones.length))} F` : "—", Icon: DollarSign, color: "#b45309" },
+              ].map(({ label, value, Icon, color }) => (
                 <div key={label} style={{
                   backgroundColor: "#fff", borderRadius: 12,
-                  borderLeft: `4px solid ${color}`,
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+                  border: "1px solid #e0e6eb",
+                  borderTop: `3px solid ${color}`,
+                  boxShadow: SH.sm,
                   padding: "18px 20px",
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 20 }}>{icon}</span>
-                    <span style={{ fontSize: 12, color: "#64748b", fontWeight: 500 }}>{label}</span>
+                    <Icon size={16} style={{ color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "#6b7c93", fontWeight: 500 }}>{label}</span>
                   </div>
-                  <div style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.4px" }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: "#30313d", letterSpacing: "-0.4px" }}>
                     {value}
                   </div>
                 </div>
@@ -325,8 +320,8 @@ export default function ZonesPage() {
                   key={zone.id}
                   style={{
                     backgroundColor: "#fff", borderRadius: 12,
-                    border: "1px solid #f1f5f9",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+                    border: "1px solid #f4f5f6",
+                    boxShadow: SH.md,
                     overflow: "hidden",
                     opacity: zone.actif ? 1 : 0.65,
                     transition: "opacity 0.2s",
@@ -335,12 +330,12 @@ export default function ZonesPage() {
                   {/* En-tête zone */}
                   <div style={{
                     padding: "16px 18px 12px",
-                    borderBottom: "1px solid #f1f5f9",
+                    borderBottom: "1px solid #f4f5f6",
                     display: "flex", alignItems: "center", justifyContent: "space-between",
                   }}>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-                        🗺️ {zone.nom_zone}
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#30313d", display: "flex", alignItems: "center", gap: 7 }}>
+                        <MapPin size={15} style={{ color: "#1a4d2e", flexShrink: 0 }} /> {zone.nom_zone}
                       </div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: "#1a4d2e", marginTop: 3 }}>
                         {zone.frais === 0 ? "Livraison gratuite" : `${fmt(zone.frais)} FCFA`}
@@ -348,7 +343,7 @@ export default function ZonesPage() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: zone.actif ? "#16a34a" : "#94a3b8", fontWeight: 600 }}>
+                      <span style={{ fontSize: 11, color: zone.actif ? "#16a34a" : "#8898aa", fontWeight: 600 }}>
                         {zone.actif ? "Active" : "Inactive"}
                       </span>
                       <Toggle on={zone.actif} onChange={() => toggleActif(zone)} />
@@ -359,7 +354,7 @@ export default function ZonesPage() {
                   <div style={{ padding: "14px 18px 16px" }}>
                     {zone.quartiers.length > 0 ? (
                       <>
-                        <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        <p style={{ fontSize: 11, color: "#8898aa", fontWeight: 600, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
                           Quartiers couverts
                         </p>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -376,7 +371,7 @@ export default function ZonesPage() {
                         </div>
                       </>
                     ) : (
-                      <p style={{ fontSize: 12.5, color: "#94a3b8", margin: 0, fontStyle: "italic" }}>
+                      <p style={{ fontSize: 12.5, color: "#8898aa", margin: 0, fontStyle: "italic" }}>
                         Aucun quartier spécifié
                       </p>
                     )}
@@ -385,7 +380,7 @@ export default function ZonesPage() {
                   {/* Actions */}
                   <div style={{
                     padding: "10px 18px",
-                    borderTop: "1px solid #f1f5f9",
+                    borderTop: "1px solid #f4f5f6",
                     display: "flex", justifyContent: "flex-end",
                   }}>
                     <button
@@ -393,13 +388,13 @@ export default function ZonesPage() {
                       disabled={deleting === zone.id}
                       style={{
                         background: "none", border: "none",
-                        fontSize: 12, color: deleting === zone.id ? "#cbd5e1" : "#ef4444",
+                        fontSize: 12, color: deleting === zone.id ? "#8898aa" : "#ef4444",
                         cursor: deleting === zone.id ? "not-allowed" : "pointer",
                         fontWeight: 600, fontFamily: "inherit",
                         padding: "4px 8px",
                       }}
                     >
-                      {deleting === zone.id ? "Suppression…" : "🗑 Supprimer"}
+                      {deleting === zone.id ? "Suppression…" : <><Trash2 size={12} /> Supprimer</>}
                     </button>
                   </div>
                 </div>
@@ -413,7 +408,7 @@ export default function ZonesPage() {
       {toast && (
         <div style={{
           position: "fixed", bottom: 24, right: 32,
-          backgroundColor: "#0f172a", color: "#fff",
+          backgroundColor: "#30313d", color: "#fff",
           padding: "12px 20px", borderRadius: 10,
           fontSize: 13.5, fontWeight: 600,
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",

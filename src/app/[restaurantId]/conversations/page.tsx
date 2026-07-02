@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Phone, Lock, MessageSquare } from "lucide-react";
+import { SH } from "@/lib/ds";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HistoryEntry {
@@ -28,9 +30,9 @@ const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> =
   actif:             { label: "Actif",            bg: "#f0fdf4", color: "#16a34a" },
   commande_en_cours: { label: "Commande en cours", bg: "#fff7ed", color: "#c2410c" },
   transfert_humain:  { label: "Transfert humain", bg: "#fef2f2", color: "#dc2626" },
-  closed:            { label: "Fermé",            bg: "#f1f5f9", color: "#64748b" },
-  ferme:             { label: "Fermé",            bg: "#f1f5f9", color: "#64748b" },
-  fermé:             { label: "Fermé",            bg: "#f1f5f9", color: "#64748b" },
+  closed:            { label: "Fermé",            bg: "#f4f5f6", color: "#6b7c93" },
+  ferme:             { label: "Fermé",            bg: "#f4f5f6", color: "#6b7c93" },
+  fermé:             { label: "Fermé",            bg: "#f4f5f6", color: "#6b7c93" },
 };
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
@@ -54,7 +56,7 @@ function maskPhone(phone: string | null): string {
 
 function getStatus(status: string) {
   return (
-    STATUS_CFG[status] ?? { label: status, bg: "#f1f5f9", color: "#64748b" }
+    STATUS_CFG[status] ?? { label: status, bg: "#f4f5f6", color: "#6b7c93" }
   );
 }
 
@@ -90,20 +92,22 @@ const WA_UPGRADE = "https://wa.me/22376753087?text=Bonjour%20RestoFlow%2C%20je%2
 function PlanBanner() {
   return (
     <div style={{ padding: "32px 28px" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 24px", letterSpacing: "-0.4px" }}>
-        💬 Conversations
+      <h1 style={{ fontSize: 22, fontWeight: 800, color: "#30313d", margin: "0 0 24px", letterSpacing: "-0.4px" }}>
+        Conversations
       </h1>
       <div style={{
-        backgroundColor: "#fff", border: "1.5px solid #e2e8f0",
+        backgroundColor: "#fff", border: "1px solid #e0e6eb",
         borderRadius: 16, padding: "48px 32px",
         textAlign: "center" as const, maxWidth: 480, margin: "0 auto",
-        boxShadow: "0 4px 24px rgba(0,0,0,.06)",
+        boxShadow: SH.md,
       }}>
-        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", margin: "0 0 10px" }}>
+        <div style={{ marginBottom: 16, display: "flex", justifyContent: "center", color: "#8898aa" }}>
+          <Lock size={44} />
+        </div>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "#30313d", margin: "0 0 10px" }}>
           Historique des conversations
         </h2>
-        <p style={{ fontSize: 14, color: "#64748b", margin: "0 0 24px", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 14, color: "#6b7c93", margin: "0 0 24px", lineHeight: 1.6 }}>
           Disponible à partir du plan <strong>Pro</strong>.
           Passez au Pro pour voir l&apos;historique complet de toutes vos conversations WhatsApp.
         </p>
@@ -114,7 +118,7 @@ function PlanBanner() {
             padding: "11px 24px", borderRadius: 8,
             fontSize: 14, fontWeight: 700, textDecoration: "none",
           }}>
-          💬 Passer au Pro →
+          Passer au Pro →
         </a>
       </div>
     </div>
@@ -188,17 +192,17 @@ export default function ConversationsPage() {
   if (plan === "starter") return <PlanBanner />;
 
   return (
-    <div style={{ padding: "32px 28px", minHeight: "100vh", backgroundColor: "#f8fafc" }}>
+    <div style={{ padding: "32px 28px", minHeight: "100vh", backgroundColor: "#f6f9fc" }}>
 
       {/* ── En-tête ──────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{
-          fontSize: 22, fontWeight: 800, color: "#0f172a",
+          fontSize: 22, fontWeight: 800, color: "#30313d",
           margin: 0, letterSpacing: "-0.4px",
         }}>
-          💬 Conversations
+          Conversations
         </h1>
-        <p style={{ margin: "4px 0 0", fontSize: 13.5, color: "#64748b" }}>
+        <p style={{ margin: "4px 0 0", fontSize: 13.5, color: "#6b7c93", lineHeight: 1.5 }}>
           Historique des échanges WhatsApp avec vos clients
         </p>
       </div>
@@ -207,15 +211,15 @@ export default function ConversationsPage() {
       <div style={{ marginBottom: 20, display: "flex", flexDirection: "column" as const, gap: 10 }}>
         <input
           type="text"
-          placeholder="🔍  Rechercher par numéro ou nom…"
+          placeholder="Rechercher par numéro ou nom…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
             width: "100%", maxWidth: 420,
             padding: "10px 14px", fontSize: 13.5,
-            border: "1px solid #e2e8f0", borderRadius: 8,
+            border: "1px solid #e0e6eb", borderRadius: 8,
             backgroundColor: "#fff", outline: "none",
-            color: "#0f172a", fontFamily: "inherit",
+            color: "#30313d", fontFamily: "inherit",
             boxSizing: "border-box" as const,
           }}
         />
@@ -232,9 +236,9 @@ export default function ConversationsPage() {
                   padding: "6px 14px", borderRadius: 20,
                   fontSize: 12.5, fontWeight: active ? 700 : 500,
                   cursor: "pointer",
-                  border: active ? "1.5px solid #16a34a" : "1.5px solid #e2e8f0",
+                  border: active ? "1.5px solid #16a34a" : "1px solid #e0e6eb",
                   backgroundColor: active ? "#f0fdf4" : "#fff",
-                  color: active ? "#16a34a" : "#64748b",
+                  color: active ? "#16a34a" : "#6b7c93",
                   transition: "all 0.12s", fontFamily: "inherit",
                 }}
               >
@@ -255,20 +259,22 @@ export default function ConversationsPage() {
       {loading ? (
         <div style={{
           textAlign: "center" as const, padding: "80px 0",
-          color: "#94a3b8", fontSize: 14,
+          color: "#8898aa", fontSize: 14,
         }}>
           Chargement des conversations…
         </div>
       ) : filtered.length === 0 ? (
         <div style={{
           textAlign: "center" as const, padding: "80px 0",
-          backgroundColor: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
+          backgroundColor: "#fff", borderRadius: 12, border: "1px solid #e0e6eb",
         }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>💬</div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: "#0f172a", margin: "0 0 6px" }}>
+          <div style={{ marginBottom: 12, display: "flex", justifyContent: "center", color: "#8898aa" }}>
+            <MessageSquare size={36} />
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 600, color: "#30313d", margin: "0 0 6px" }}>
             Aucune conversation
           </p>
-          <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "#8898aa", margin: 0 }}>
             {search
               ? "Aucun résultat pour cette recherche."
               : "Les conversations WhatsApp apparaîtront ici."}
@@ -277,7 +283,7 @@ export default function ConversationsPage() {
       ) : (
         <div style={{
           backgroundColor: "#fff",
-          border: "1px solid #e2e8f0",
+          border: "1px solid #e0e6eb",
           borderRadius: 12,
           overflow: "hidden",
         }}>
@@ -293,7 +299,7 @@ export default function ConversationsPage() {
                 onClick={() => setSelected(conv)}
                 style={{
                   padding: "14px 20px",
-                  borderBottom: i < filtered.length - 1 ? "1px solid #f1f5f9" : "none",
+                  borderBottom: i < filtered.length - 1 ? "1px solid #f4f5f6" : "none",
                   cursor: "pointer",
                   transition: "background-color 0.1s",
                   backgroundColor: "transparent",
@@ -311,9 +317,9 @@ export default function ConversationsPage() {
                       width: 42, height: 42, borderRadius: "50%",
                       backgroundColor: "#f0fdf4", flexShrink: 0,
                       display: "flex", alignItems: "center",
-                      justifyContent: "center", fontSize: 20,
+                      justifyContent: "center", color: "#1a4d2e",
                     }}>
-                      📱
+                      <Phone size={18} />
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -323,7 +329,7 @@ export default function ConversationsPage() {
                       }}>
                         <span style={{
                           fontSize: 13.5, fontWeight: 700,
-                          color: "#0f172a", fontFamily: "monospace",
+                          color: "#30313d", fontFamily: "monospace",
                         }}>
                           {maskPhone(conv.customer_phone)}
                         </span>
@@ -339,7 +345,7 @@ export default function ConversationsPage() {
 
                       {lastMsgText && (
                         <p style={{
-                          margin: 0, fontSize: 12, color: "#94a3b8",
+                          margin: 0, fontSize: 12, color: "#8898aa",
                           overflow: "hidden", textOverflow: "ellipsis",
                           whiteSpace: "nowrap" as const, maxWidth: 380,
                         }}>
@@ -353,16 +359,17 @@ export default function ConversationsPage() {
 
                   {/* Droite : date + compteur */}
                   <div style={{ flexShrink: 0, textAlign: "right" as const }}>
-                    <div style={{ fontSize: 11.5, color: "#94a3b8", marginBottom: 5 }}>
+                    <div style={{ fontSize: 11.5, color: "#8898aa", marginBottom: 5 }}>
                       {fmtDate(conv.updated_at)}
                     </div>
                     {msgs > 0 && (
                       <div style={{
                         display: "inline-flex", alignItems: "center", gap: 3,
-                        backgroundColor: "#f1f5f9", borderRadius: 10,
-                        padding: "2px 8px", fontSize: 11, color: "#64748b", fontWeight: 600,
+                        backgroundColor: "#f4f5f6", borderRadius: 10,
+                        padding: "2px 8px", fontSize: 11, color: "#6b7c93", fontWeight: 600,
                       }}>
-                        💬 {msgs}
+                        <MessageSquare size={10} style={{ flexShrink: 0 }} />
+                        {msgs}
                       </div>
                     )}
                   </div>
@@ -405,9 +412,9 @@ export default function ConversationsPage() {
                 width: 38, height: 38, borderRadius: "50%",
                 backgroundColor: "rgba(255,255,255,0.15)", flexShrink: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 18,
+                color: "#fff",
               }}>
-                📱
+                <Phone size={18} />
               </div>
 
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -449,7 +456,7 @@ export default function ConversationsPage() {
               {historique.length === 0 ? (
                 <div style={{
                   textAlign: "center" as const, padding: "60px 0",
-                  color: "#94a3b8", fontSize: 13,
+                  color: "#8898aa", fontSize: 13,
                 }}>
                   Aucun message dans cette conversation
                 </div>
@@ -481,7 +488,7 @@ export default function ConversationsPage() {
                         {msg.text}
                         <span style={{
                           display: "block", textAlign: "right" as const,
-                          fontSize: 10, color: isBot ? "#5e8a65" : "#94a3b8",
+                          fontSize: 10, color: isBot ? "#5e8a65" : "#8898aa",
                           marginTop: 3,
                         }}>
                           {isBot ? "Bot ·" : "Client ·"} {idx + 1}/{historique.length}
@@ -501,7 +508,7 @@ export default function ConversationsPage() {
               borderTop: "1px solid #d9d9d9",
               display: "flex", alignItems: "center",
               justifyContent: "space-between",
-              fontSize: 11, color: "#94a3b8",
+              fontSize: 11, color: "#8898aa",
               flexShrink: 0,
             }}>
               <span>

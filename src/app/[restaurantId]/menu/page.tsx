@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LoadingScreen } from "@/components/dashboard/LoadingScreen";
+import { SH } from "@/lib/ds";
+import { UtensilsCrossed, MessageCircle } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface MenuItem {
@@ -29,7 +32,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
       aria-checked={on}
       style={{
         width: 44, height: 24, borderRadius: 12, flexShrink: 0,
-        backgroundColor: on ? "#22c55e" : "#cbd5e1",
+        backgroundColor: on ? "#22c55e" : "#8898aa",
         position: "relative", cursor: "pointer",
         transition: "background-color 0.2s",
       }}
@@ -147,65 +150,56 @@ export default function MenuPage() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%", padding: "9px 12px",
-    border: "1px solid #e2e8f0", borderRadius: 8,
+    border: "1px solid #e0e6eb", borderRadius: 8,
     fontSize: 13.5, outline: "none", boxSizing: "border-box",
-    fontFamily: "inherit", color: "#0f172a",
+    fontFamily: "inherit", color: "#30313d",
     backgroundColor: "#fff",
   };
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: 12, fontWeight: 600,
-    color: "#64748b", marginBottom: 5,
+    color: "#6b7c93", marginBottom: 5,
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-        <div style={{ textAlign: "center", color: "#94a3b8" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🍽️</div>
-          <p style={{ fontSize: 14 }}>Chargement du menu…</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen message="Chargement du menu…" />;
 
   return (
     <>
       {/* ── Header sticky ─────────────────────────────────────────── */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
-        backgroundColor: "#fff", borderBottom: "1px solid #e2e8f0",
+        backgroundColor: "#fff", borderBottom: "1px solid #e0e6eb",
         padding: "0 32px",
       }}>
         <div style={{ height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h1 style={{ fontSize: 17, fontWeight: 700, color: "#0f172a", margin: 0, letterSpacing: "-0.3px" }}>
+            <h1 style={{ fontSize: 17, fontWeight: 700, color: "#30313d", margin: 0, letterSpacing: "-0.3px" }}>
               Menu
             </h1>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: 0, marginTop: 1 }}>
+            <p style={{ fontSize: 12, color: "#8898aa", margin: 0, marginTop: 1 }}>
               {items.length} plat{items.length !== 1 ? "s" : ""} · {items.filter(m => m.is_available).length} disponibles
             </p>
           </div>
 
           {plan === "starter" && items.length >= 20 ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 12, color: "#94a3b8" }}>Limite Starter : 20 plats</span>
+              <span style={{ fontSize: 12, color: "#8898aa" }}>Limite Starter : 20 plats</span>
               <a href={WA_UPGRADE} target="_blank" rel="noopener noreferrer"
                 style={{
                   backgroundColor: "#1a4d2e", color: "#fff",
                   border: "none", borderRadius: 8, padding: "9px 18px",
                   fontSize: 13, fontWeight: 700, textDecoration: "none", cursor: "pointer",
                 }}>
-                💬 Passer au Pro
+                <MessageCircle size={13} /> Passer au Pro
               </a>
             </div>
           ) : (
             <button
               onClick={() => setShowForm(!showForm)}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#475569" : "#16a34a")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#64748b" : "#1a4d2e")}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#6b7c93" : "#16a34a")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = showForm ? "#6b7c93" : "#1a4d2e")}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
-                backgroundColor: showForm ? "#64748b" : "#1a4d2e",
+                backgroundColor: showForm ? "#6b7c93" : "#1a4d2e",
                 color: "#fff", border: "none", borderRadius: 8,
                 padding: "9px 18px", fontSize: 13.5, fontWeight: 700,
                 cursor: "pointer", transition: "background-color 0.15s",
@@ -229,9 +223,9 @@ export default function MenuPage() {
                 onClick={() => setFilter(cat)}
                 style={{
                   padding: "5px 14px", borderRadius: 20, flexShrink: 0,
-                  border: active ? "none" : "1px solid #e2e8f0",
-                  backgroundColor: active ? "#0f172a" : "#fff",
-                  color: active ? "#fff" : "#64748b",
+                  border: active ? "none" : "1px solid #e0e6eb",
+                  backgroundColor: active ? "#30313d" : "#fff",
+                  color: active ? "#fff" : "#6b7c93",
                   fontSize: 12.5, fontWeight: active ? 700 : 500,
                   cursor: "pointer", fontFamily: "inherit",
                 }}
@@ -255,11 +249,11 @@ export default function MenuPage() {
         {showForm && (
           <div style={{
             backgroundColor: "#fff", borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+            border: "1px solid #e0e6eb",
+            boxShadow: SH.lg,
             padding: "24px 28px", marginBottom: 28,
           }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", margin: "0 0 20px" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#30313d", margin: "0 0 20px" }}>
               Nouveau plat
             </h3>
             <form onSubmit={handleAdd}>
@@ -334,8 +328,8 @@ export default function MenuPage() {
                 <button
                   type="button" onClick={() => setShowForm(false)}
                   style={{
-                    backgroundColor: "#f8fafc", color: "#64748b",
-                    border: "1px solid #e2e8f0", borderRadius: 8,
+                    backgroundColor: "#f6f9fc", color: "#6b7c93",
+                    border: "1px solid #e0e6eb", borderRadius: 8,
                     padding: "10px 18px", fontSize: 13.5, fontWeight: 600,
                     cursor: "pointer", fontFamily: "inherit",
                   }}
@@ -351,13 +345,13 @@ export default function MenuPage() {
         {items.length === 0 ? (
           <div style={{
             backgroundColor: "#fff", borderRadius: 16,
-            border: "1px solid #e2e8f0", padding: "80px 32px", textAlign: "center",
+            border: "1px solid #e0e6eb", padding: "80px 32px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 20 }}>🍽️</div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#0f172a", marginBottom: 10 }}>
+            <UtensilsCrossed size={48} style={{ color: "#8898aa", marginBottom: 20 }} />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#30313d", marginBottom: 10 }}>
               Votre menu est vide
             </h2>
-            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>
+            <p style={{ fontSize: 14, color: "#6b7c93", marginBottom: 24 }}>
               Ajoutez votre premier plat pour que le bot puisse le proposer à vos clients.
             </p>
             <button
@@ -373,8 +367,8 @@ export default function MenuPage() {
           </div>
         ) : Object.keys(groupedByCategory).length === 0 ? (
           <div style={{
-            backgroundColor: "#fff", borderRadius: 12, border: "1px solid #e2e8f0",
-            padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: 14,
+            backgroundColor: "#fff", borderRadius: 12, border: "1px solid #e0e6eb",
+            padding: "40px", textAlign: "center", color: "#8898aa", fontSize: 14,
           }}>
             Aucun plat dans cette catégorie
           </div>
@@ -386,13 +380,13 @@ export default function MenuPage() {
                 display: "flex", alignItems: "center", gap: 10, marginBottom: 12,
               }}>
                 <span style={{
-                  fontSize: 11, fontWeight: 800, color: "#94a3b8",
+                  fontSize: 11, fontWeight: 800, color: "#8898aa",
                   textTransform: "uppercase", letterSpacing: "0.08em",
                 }}>
                   {cat}
                 </span>
-                <div style={{ flex: 1, height: 1, backgroundColor: "#f1f5f9" }} />
-                <span style={{ fontSize: 11, color: "#cbd5e1" }}>{catItems.length}</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: "#f4f5f6" }} />
+                <span style={{ fontSize: 11, color: "#8898aa" }}>{catItems.length}</span>
               </div>
 
               {/* Cards items */}
@@ -402,8 +396,8 @@ export default function MenuPage() {
                     key={item.id}
                     style={{
                       backgroundColor: "#fff", borderRadius: 10,
-                      border: "1px solid #f1f5f9",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                      border: "1px solid #f4f5f6",
+                      boxShadow: SH.sm,
                       padding: "14px 18px",
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       opacity: item.is_available ? 1 : 0.55,
@@ -413,14 +407,14 @@ export default function MenuPage() {
                     {/* Infos plat */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
-                        fontSize: 14, fontWeight: 600, color: "#0f172a",
+                        fontSize: 14, fontWeight: 600, color: "#30313d",
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
                         {item.name}
                         {!item.is_available && (
                           <span style={{
-                            fontSize: 10.5, fontWeight: 600, color: "#94a3b8",
-                            backgroundColor: "#f1f5f9", padding: "2px 7px", borderRadius: 4,
+                            fontSize: 10.5, fontWeight: 600, color: "#8898aa",
+                            backgroundColor: "#f4f5f6", padding: "2px 7px", borderRadius: 4,
                           }}>
                             Indisponible
                           </span>
@@ -428,7 +422,7 @@ export default function MenuPage() {
                       </div>
                       {item.description && (
                         <div style={{
-                          fontSize: 12.5, color: "#94a3b8", marginTop: 3,
+                          fontSize: 12.5, color: "#8898aa", marginTop: 3,
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                         }}>
                           {item.description}
@@ -450,7 +444,7 @@ export default function MenuPage() {
                             }}
                             style={{
                               width: 80, padding: "5px 8px",
-                              border: "1px solid #3b82f6", borderRadius: 6,
+                              border: "1px solid #1a4d2e", borderRadius: 6,
                               fontSize: 13, outline: "none", fontFamily: "inherit",
                               boxSizing: "border-box",
                             }}
@@ -472,13 +466,13 @@ export default function MenuPage() {
                           title="Cliquer pour modifier le prix"
                           style={{
                             background: "none", border: "none",
-                            fontSize: 15, fontWeight: 800, color: "#0f172a",
+                            fontSize: 15, fontWeight: 800, color: "#30313d",
                             cursor: "pointer", fontFamily: "inherit",
                             padding: "2px 4px", borderRadius: 4,
                           }}
                         >
                           {fmt(item.price)}
-                          <span style={{ fontSize: 11, fontWeight: 500, color: "#64748b", marginLeft: 3 }}>FCFA</span>
+                          <span style={{ fontSize: 11, fontWeight: 500, color: "#6b7c93", marginLeft: 3 }}>FCFA</span>
                         </button>
                       )}
 
@@ -502,7 +496,7 @@ export default function MenuPage() {
       {toast && (
         <div style={{
           position: "fixed", bottom: 24, right: 32,
-          backgroundColor: "#0f172a", color: "#fff",
+          backgroundColor: "#30313d", color: "#fff",
           padding: "12px 20px", borderRadius: 10,
           fontSize: 13.5, fontWeight: 600,
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
