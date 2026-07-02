@@ -4,18 +4,23 @@ import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect, useCallback } from "react";
+import {
+  Package, MessageSquare, UtensilsCrossed, MapPin,
+  Settings, HelpCircle, BarChart2, ShieldAlert, Menu, X,
+  AlertTriangle, ArrowRight,
+} from "lucide-react";
 
 const SIDEBAR_W = 260;
 const BG_DARK = "#0f172a";
 
 const NAV = [
-  { label: "Commandes",          href: "commandes",     icon: "📦" },
-  { label: "Conversations",      href: "conversations", icon: "💬" },
-  { label: "Menu",               href: "menu",          icon: "🍽️" },
-  { label: "Zones de livraison", href: "zones",     icon: "🗺️" },
-  { label: "Configuration",      href: "config",    icon: "⚙️" },
-  { label: "FAQ",                href: "faq",       icon: "❓" },
-  { label: "Statistiques",       href: "stats",     icon: "📊" },
+  { label: "Commandes",          href: "commandes",     Icon: Package },
+  { label: "Conversations",      href: "conversations", Icon: MessageSquare },
+  { label: "Menu",               href: "menu",          Icon: UtensilsCrossed },
+  { label: "Zones de livraison", href: "zones",         Icon: MapPin },
+  { label: "Configuration",      href: "config",        Icon: Settings },
+  { label: "FAQ",                href: "faq",           Icon: HelpCircle },
+  { label: "Statistiques",       href: "stats",         Icon: BarChart2 },
 ];
 
 export default function RestaurantLayout({ children }: { children: React.ReactNode }) {
@@ -24,12 +29,15 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
   const router   = useRouter();
   const restaurantId = params.restaurantId as string;
 
-  const [hovered,      setHovered]      = useState<string | null>(null);
-  const [isAdmin,      setIsAdmin]      = useState(false);
-  const [userInfo,     setUserInfo]     = useState<{ email: string; name: string } | null>(null);
-  const [restoName,    setRestoName]    = useState("");
-  const [restoPlan,    setRestoPlan]    = useState("starter");
-  const [pendingCount, setPendingCount] = useState(0);
+  const [mobileOpen,       setMobileOpen]       = useState(false);
+  const [hovered,          setHovered]          = useState<string | null>(null);
+  const [isAdmin,          setIsAdmin]          = useState(false);
+  const [userInfo,         setUserInfo]         = useState<{ email: string; name: string } | null>(null);
+  const [restoName,        setRestoName]        = useState("");
+  const [restoPlan,        setRestoPlan]        = useState("starter");
+  const [statutAbonnement, setStatutAbonnement] = useState<string | null>(null);
+  const [createdAt,        setCreatedAt]        = useState<string | null>(null);
+  const [pendingCount,     setPendingCount]     = useState(0);
 
   // ── Chargement user + restaurant ──────────────────────────────────────
   useEffect(() => {
@@ -47,16 +55,16 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
     supabase
       .from("restaurants")
-      .select("name, statut_abonnement, plan")
+      .select("name, statut_abonnement, plan, created_at")
       .eq("id", restaurantId)
       .single()
       .then(({ data }) => {
         if (data?.name) setRestoName(data.name);
-        if ((data as { plan?: string } | null)?.plan) setRestoPlan((data as { plan?: string }).plan!);
-        if (
-          (data as { statut_abonnement?: string } | null)?.statut_abonnement === "suspendu" &&
-          !pathname.endsWith("/suspendu")
-        ) {
+        const d = data as { plan?: string; statut_abonnement?: string; created_at?: string } | null;
+        if (d?.plan) setRestoPlan(d.plan);
+        if (d?.statut_abonnement) setStatutAbonnement(d.statut_abonnement);
+        if (d?.created_at) setCreatedAt(d.created_at);
+        if (d?.statut_abonnement === "suspendu" && !pathname.endsWith("/suspendu")) {
           router.push(`/${restaurantId}/suspendu`);
         }
       });
@@ -97,13 +105,37 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
       display: "flex", minHeight: "100vh",
       fontFamily: "system-ui, -apple-system, sans-serif",
     }}>
+      <style>{`
+        input:focus-visible,textarea:focus-visible,select:focus-visible {
+          outline: none !important;
+          border-color: #1a4d2e !important;
+          box-shadow: 0 0 0 2px rgba(26,77,46,.30) !important;
+        }
+        a:focus-visible,button:focus-visible {
+          outline: 2px solid #1a4d2e;
+          outline-offset: 2px;
+          border-radius: 4px;
+        }
+        .rf-sidebar {
+          transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .rf-mobile-bar { display: none; }
+        .rf-overlay    { display: none; }
+        @media (max-width: 767px) {
+          .rf-sidebar   { transform: translateX(-260px); }
+          .rf-sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.22); }
+          .rf-main      { margin-left: 0 !important; }
+          .rf-mobile-bar { display: flex !important; }
+          .rf-overlay   { display: block !important; }
+        }
+      `}</style>
       {/* ── Sidebar ─────────────────────────────────────────────────── */}
-      <aside style={{
+      <aside className={`rf-sidebar${mobileOpen ? " open" : ""}`} style={{
         width: SIDEBAR_W, flexShrink: 0,
         backgroundColor: BG_DARK,
         display: "flex", flexDirection: "column",
         position: "fixed", top: 0, left: 0, bottom: 0,
-        zIndex: 100,
+        zIndex: 110,
         overflowY: "auto",
       }}>
         {/* Logo */}
@@ -125,8 +157,8 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
               backgroundColor:
                 restoPlan === "business" ? "#d97706"
                 : restoPlan === "pro"     ? "#16a34a"
-                : restoPlan === "trial"   ? "#3b82f6"
-                :                          "#64748b",
+                : restoPlan === "trial"   ? "#b45309"
+                :                          "#6b7c93",
               color: "#fff",
               fontSize: 9, fontWeight: 800, padding: "2px 5px",
               borderRadius: 4, letterSpacing: "0.06em", textTransform: "uppercase" as const,
@@ -155,7 +187,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
 
         {/* Navigation */}
         <nav style={{ padding: "4px 10px", flex: 1 }}>
-          {NAV.map(({ label, href, icon }) => {
+          {NAV.map(({ label, href, Icon }) => {
             const full    = `/${restaurantId}/${href}`;
             const active  = pathname === full || pathname.startsWith(full + "/");
             const isHov   = hovered === href;
@@ -167,6 +199,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                 href={full}
                 onMouseEnter={() => setHovered(href)}
                 onMouseLeave={() => setHovered(null)}
+                onClick={() => setMobileOpen(false)}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "9px 12px", borderRadius: 8, marginBottom: 1,
@@ -176,7 +209,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                   transition: "background-color 0.12s, color 0.12s",
                 }}
               >
-                <span style={{ fontSize: 16, flexShrink: 0, lineHeight: 1 }}>{icon}</span>
+                <Icon size={16} style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: 13.5, fontWeight: active ? 600 : 400, flex: 1 }}>
                   {label}
                 </span>
@@ -210,7 +243,7 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
                   transition: "background-color 0.12s",
                 }}
               >
-                <span style={{ fontSize: 16, flexShrink: 0 }}>🛡️</span>
+                <ShieldAlert size={16} style={{ flexShrink: 0 }} />
                 <span style={{ fontSize: 12.5, fontWeight: 500, letterSpacing: "0.02em" }}>
                   Administration
                 </span>
@@ -270,10 +303,89 @@ export default function RestaurantLayout({ children }: { children: React.ReactNo
       </aside>
 
       {/* ── Contenu principal ────────────────────────────────────────── */}
-      <main style={{
+      <main className="rf-main" style={{
         marginLeft: SIDEBAR_W, flex: 1,
-        backgroundColor: "#f8fafc", minHeight: "100vh",
+        backgroundColor: "#f6f9fc", minHeight: "100vh",
       }}>
+        {/* Barre mobile — masquée sur desktop */}
+        <div className="rf-mobile-bar" style={{
+          position: "sticky", top: 0, zIndex: 50,
+          backgroundColor: "#fff", borderBottom: "1px solid #e0e6eb",
+          padding: "0 16px", height: 56,
+          alignItems: "center", justifyContent: "space-between",
+        }}>
+          <button
+            onClick={() => setMobileOpen(true)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: 8, borderRadius: 8, color: "#30313d",
+              display: "flex", alignItems: "center",
+            }}
+          >
+            <Menu size={22} />
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#30313d", letterSpacing: "-0.3px" }}>
+            RestoFlow
+          </span>
+          <div style={{ width: 38 }} />
+        </div>
+
+        {/* Overlay mobile */}
+        <div
+          className="rf-overlay"
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: "fixed", inset: 0,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            zIndex: 105, backdropFilter: "blur(2px)",
+          }}
+        />
+
+        {/* ── Banner essai gratuit ─────────────────────────────────── */}
+        {statutAbonnement === "trial" && (() => {
+          const msPerDay   = 1000 * 60 * 60 * 24;
+          const elapsed    = createdAt
+            ? Math.floor((Date.now() - new Date(createdAt).getTime()) / msPerDay)
+            : 0;
+          const remaining  = Math.max(0, 7 - elapsed);
+          const urgent     = remaining <= 2;
+
+          return (
+            <div style={{
+              backgroundColor: urgent ? "#7f1d1d" : "#1a4d2e",
+              padding: "10px 20px",
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between", gap: 12,
+              flexWrap: "wrap" as const,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <AlertTriangle size={14} style={{ color: urgent ? "#fca5a5" : "#86efac", flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: urgent ? "#fca5a5" : "#bbf7d0", fontWeight: 500 }}>
+                  {remaining === 0
+                    ? "Votre essai gratuit est terminé."
+                    : `Essai gratuit — ${remaining} jour${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}.`}
+                </span>
+              </div>
+              <Link
+                href={`/${restaurantId}/abonnement`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  backgroundColor: "#fff",
+                  color: "#1a4d2e",
+                  fontSize: 12, fontWeight: 700, padding: "5px 12px",
+                  borderRadius: 6, textDecoration: "none",
+                  whiteSpace: "nowrap" as const,
+                  transition: "opacity .15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              >
+                Passer en compte actif <ArrowRight size={11} />
+              </Link>
+            </div>
+          );
+        })()}
+
         {children}
       </main>
     </div>
