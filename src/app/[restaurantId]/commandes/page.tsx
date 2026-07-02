@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import React from "react";
+import { Bell, BellOff, Bot, Truck, AlertTriangle, XCircle, Copy, MessageCircle, MousePointerClick, Timer } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface OrderItem { nom: string; quantite: number; prix_unitaire: number; }
@@ -123,8 +124,8 @@ function payLabel(mode: string | null) {
   return "—";
 }
 
-function orderNum(idx: number) {
-  return "#" + String(idx + 1).padStart(3, "0");
+function orderNum(id: string) {
+  return "#" + id.slice(0, 6).toUpperCase();
 }
 
 function timeAgo(date: Date): string {
@@ -226,6 +227,14 @@ export default function CommandesPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDrawer,    setShowDrawer]    = useState(false);
 
+  // Undo + stale
+  const [undoToast, setUndoToast] = useState<{
+    label: string; prevStatus: string; newStatus: string;
+    orderId: string; timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  const [isStale, setIsStale]       = useState(false);
+  const lastLoadSuccessRef          = useRef<Date>(new Date());
+
   // ── Chargement restaurant ──────────────────────────────────────────────
   useEffect(() => {
     const supabase = createClient();
@@ -276,9 +285,15 @@ export default function CommandesPage() {
   }, [lastActivity]);
 
   const load = useCallback(async () => {
-    const res  = await fetch(`/api/commandes?restaurant_id=${restaurantId}`);
-    const data = await res.json();
-    if (Array.isArray(data)) setOrders(data);
+    try {
+      const res  = await fetch(`/api/commandes?restaurant_id=${restaurantId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setOrders(data);
+        lastLoadSuccessRef.current = new Date();
+        setIsStale(false);
+      }
+    } catch { /* stale indicator will show */ }
     setLoading(false);
   }, [restaurantId]);
 
@@ -287,6 +302,13 @@ export default function CommandesPage() {
     const poll = setInterval(load, 30_000);
     return () => clearInterval(poll);
   }, [load]);
+
+  useEffect(() => {
+    const staleTimer = setInterval(() => {
+      setIsStale(Date.now() - lastLoadSuccessRef.current.getTime() > 90_000);
+    }, 15_000);
+    return () => clearInterval(staleTimer);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -342,14 +364,55 @@ export default function CommandesPage() {
   }, [orders]);
 
   // ── Handlers ──────────────────────────────────────────────────────────
-  async function updateStatus(orderId: string, newStatus: string) {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+  async function commitStatus(orderId: string, newStatus: string) {
     const res = await fetch(`/api/commandes/${orderId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
     if (!res.ok) load();
+  }
+
+  function updateStatus(orderId: string, newStatus: string) {
+    if (undoToast) {
+      clearTimeout(undoToast.timer);
+      void commitStatus(undoToast.orderId, undoToast.newStatus);
+      setUndoToast(null);
+    }
+    const prevStatus = orders.find((o) => o.id === orderId)?.status ?? "pending";
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+    const label = `Commande → ${STATUS_BADGE[newStatus]?.label ?? newStatus}`;
+    const timer = setTimeout(() => {
+      void commitStatus(orderId, newStatus);
+      setUndoToast(null);
+    }, 4000);
+    setUndoToast({ label, prevStatus, newStatus, orderId, timer });
+  }
+
+  function handleUndo() {
+    if (!undoToast) return;
+    clearTimeout(undoToast.timer);
+    setOrders((prev) => prev.map((o) => (o.id === undoToast.orderId ? { ...o, status: undoToast.prevStatus } : o)));
+    setUndoToast(null);
+  }
+
+  async function cancelOrder(orderId: string) {
+    if (!window.confirm("Annuler cette commande ?")) return;
+    if (undoToast) {
+      clearTimeout(undoToast.timer);
+      void commitStatus(undoToast.orderId, undoToast.newStatus);
+      setUndoToast(null);
+    }
+    const prevStatus = orders.find((o) => o.id === orderId)?.status ?? "pending";
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o)));
+    setShowDrawer(false);
+    setSelectedOrder(null);
+    const res = await fetch(`/api/commandes/${orderId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "cancelled" }),
+    });
+    if (!res.ok) setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: prevStatus } : o)));
   }
 
   function nextStatus(current: string): string | null {
@@ -422,8 +485,8 @@ export default function CommandesPage() {
   const trialBorder = trialUrgent ? "#fecaca" : "#fed7aa";
   const trialColor  = trialUrgent ? "#df1b41"  : "#b45309";
   const trialLabel  = trialUrgent
-    ? `🔴 Plus que ${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} !`
-    : `⏳ ${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} d'essai restants`;
+    ? `Plus que ${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} !`
+    : `${trialDaysLeft} jour${(trialDaysLeft ?? 0) > 1 ? "s" : ""} d'essai restants`;
 
   const showOrangeBanner = statut === "trial" && trialDaysLeft !== null && trialDaysLeft > 0 && trialDaysLeft <= 7;
   const showRedBanner    = (statut === "trial" && trialDaysLeft !== null && trialDaysLeft <= 0) || statut === "suspendu";
@@ -443,7 +506,7 @@ export default function CommandesPage() {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: T.font, backgroundColor: T.surface }}>
         <div style={{ textAlign: "center", color: T.textTer }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+          <Timer size={32} style={{ color: T.textTer, marginBottom: 12 }} />
           <p style={{ fontSize: 14, margin: 0 }}>Chargement…</p>
         </div>
       </div>
@@ -456,7 +519,6 @@ export default function CommandesPage() {
     const next   = nextStatus(order.status);
     const action = next ? ACTION_BTN[order.status] : null;
     const urg    = urgencyLevel(order);
-    const orderIdx = baseOrders.indexOf(order);
 
     return (
       <div style={{ fontFamily: T.font }}>
@@ -465,7 +527,7 @@ export default function CommandesPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <span style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary, letterSpacing: "-0.5px" }}>
-              {orderNum(orderIdx >= 0 ? orderIdx : 0)}
+              {orderNum(order.id)}
             </span>
             <span style={{ fontSize: 12, color: T.textTer, marginLeft: 10 }}>
               {new Date(order.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
@@ -487,7 +549,7 @@ export default function CommandesPage() {
             borderRadius: 6, padding: "10px 14px", marginBottom: 16,
             display: "flex", alignItems: "center", gap: 8,
           }}>
-            <span style={{ fontSize: 15 }}>{urg === 2 ? "🔴" : "🟡"}</span>
+            <AlertTriangle size={15} style={{ color: URG_TIMER[urg], flexShrink: 0 }} />
             <span style={{ fontSize: 13, fontWeight: 700, color: URG_TIMER[urg] }}>
               Attend depuis {waitLabel(order.created_at)}
             </span>
@@ -508,6 +570,20 @@ export default function CommandesPage() {
             }}
           >
             {action.label}
+          </button>
+        )}
+
+        {order.status !== "delivered" && order.status !== "cancelled" && (
+          <button
+            onClick={() => void cancelOrder(order.id)}
+            style={{
+              width: "100%", padding: "10px 0", marginBottom: 20,
+              backgroundColor: "transparent", color: T.danger,
+              border: `1px solid #fecaca`, borderRadius: 8,
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Annuler la commande
           </button>
         )}
 
@@ -604,6 +680,8 @@ export default function CommandesPage() {
       <style>{`
         @keyframes rfDot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.7);} }
         a:focus-visible,button:focus-visible{outline:2px solid #1a4d2e;outline-offset:2px;border-radius:4px;}
+        input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none;border-color:#1a4d2e;box-shadow:0 0 0 2px rgba(26,77,46,.30);}
+        button:not(:disabled):active{transform:scale(0.97);transition:transform 100ms cubic-bezier(0.23,1,0.32,1)!important;}
         @media(prefers-reduced-motion:reduce){*{animation:none!important;transition-duration:.01ms!important;}}
         * { font-family: ${T.font}; box-sizing: border-box; }
 
@@ -634,6 +712,18 @@ export default function CommandesPage() {
         /* Order card hover */
         .rf-card:hover { border-color: #c8d0e0 !important; box-shadow: 0px 2px 4px rgba(0,0,0,0.06), 0px 4px 12px rgba(18,42,66,0.04) !important; }
         .rf-card-sel  { border-color: #1a4d2e !important; box-shadow: 0 0 0 2px rgba(26,77,46,.18) !important; }
+
+        /* Header: secondary actions desktop-only */
+        .rf-hdr-secondary { display:none; }
+        @media(min-width:768px){ .rf-hdr-secondary { display:flex; align-items:center; gap:8px; } }
+        .rf-hdr-item-d { display:none; }
+        @media(min-width:768px){ .rf-hdr-item-d { display:inline-block; } }
+        .rf-hdr-activity { display:none; }
+        @media(min-width:768px){ .rf-hdr-activity { display:block; } }
+
+        /* Card chevron: mobile tap affordance */
+        .rf-card-caret { display:inline-block; }
+        @media(min-width:768px){ .rf-card-caret { display:none; } }
       `}</style>
 
       {/* ─── Header sticky ──────────────────────────────────────────── */}
@@ -657,9 +747,9 @@ export default function CommandesPage() {
 
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 
-            {/* Trial badge */}
+            {/* Trial badge — desktop only */}
             {showTrial && (
-              <span style={{
+              <span className="rf-hdr-item-d" style={{
                 fontSize: 12, fontWeight: 700,
                 backgroundColor: trialBg, border: `1px solid ${trialBorder}`,
                 color: trialColor, padding: "5px 12px", borderRadius: 20,
@@ -679,11 +769,11 @@ export default function CommandesPage() {
                 <span style={{
                   display: "inline-block", width: 7, height: 7, borderRadius: "50%",
                   backgroundColor: "#16a34a",
-                  animation: "rfDot 2s ease-in-out infinite",
+                  animation: "rfDot 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite",
                 }} />
                 <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>Bot actif</span>
               </div>
-              <span style={{ fontSize: 10, color: T.textTer, marginTop: 2, paddingRight: 4 }}>
+              <span className="rf-hdr-activity" style={{ fontSize: 10, color: T.textTer, marginTop: 2, paddingRight: 4 }}>
                 {activityLabel}
               </span>
             </div>
@@ -694,55 +784,81 @@ export default function CommandesPage() {
               aria-label={soundEnabled ? "Désactiver les notifications sonores" : "Activer les notifications sonores"}
               title={soundEnabled ? "Désactiver les notifications sonores" : "Activer les notifications sonores"}
               style={{
-                width: 36, height: 36, borderRadius: "50%",
+                width: 44, height: 44, borderRadius: "50%",
                 border: `1px solid ${T.border}`,
                 backgroundColor: soundEnabled ? "#ecfdf5" : "#fff",
-                fontSize: 16, cursor: "pointer",
+                cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0, fontFamily: "inherit",
               }}
             >
-              {soundEnabled ? "🔔" : "🔕"}
+              {soundEnabled
+                ? <Bell size={16} style={{ color: "#16a34a" }} />
+                : <BellOff size={16} style={{ color: T.textTer }} />
+              }
             </button>
 
-            {/* Aperçu bot */}
-            <button
-              onClick={() => setShowModal(true)}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = T.surface)}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                border: `1px solid ${T.border}`, borderRadius: 6,
-                padding: "7px 14px", backgroundColor: "#fff",
-                fontSize: 13, fontWeight: 600, color: T.textPrimary,
-                cursor: "pointer", transition: "background-color 0.12s",
-                fontFamily: "inherit", boxShadow: T.shadowSm, flexShrink: 0,
-              }}
-            >
-              🤖 Aperçu bot
-            </button>
-
-            {/* WhatsApp */}
-            <button
-              onClick={copyWhatsApp}
-              disabled={!restoPhone}
-              onMouseEnter={(e) => { if (restoPhone) e.currentTarget.style.backgroundColor = "#16a34a"; }}
-              onMouseLeave={(e) => { if (restoPhone) e.currentTarget.style.backgroundColor = "#1a4d2e"; }}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                backgroundColor: restoPhone ? "#1a4d2e" : T.border,
-                color: restoPhone ? "#fff" : T.textTer,
-                border: "none", borderRadius: 6,
-                padding: "7px 16px", fontSize: 13, fontWeight: 700,
-                cursor: restoPhone ? "pointer" : "default",
-                transition: "background-color 0.12s", fontFamily: "inherit", flexShrink: 0,
-              }}
-            >
-              {copied ? "✓ Copié !" : "📱 Partager"}
-            </button>
+            {/* Aperçu bot + Partager — desktop seulement */}
+            <div className="rf-hdr-secondary">
+              <button
+                onClick={() => setShowModal(true)}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = T.surface)}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#fff")}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  border: `1px solid ${T.border}`, borderRadius: 6,
+                  padding: "7px 14px", backgroundColor: "#fff",
+                  fontSize: 13, fontWeight: 600, color: T.textPrimary,
+                  cursor: "pointer", transition: "background-color 0.12s",
+                  fontFamily: "inherit", boxShadow: T.shadowSm, flexShrink: 0,
+                }}
+              >
+                <Bot size={14} /> Aperçu bot
+              </button>
+              <button
+                onClick={copyWhatsApp}
+                disabled={!restoPhone}
+                onMouseEnter={(e) => { if (restoPhone) e.currentTarget.style.backgroundColor = "#16a34a"; }}
+                onMouseLeave={(e) => { if (restoPhone) e.currentTarget.style.backgroundColor = "#1a4d2e"; }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  backgroundColor: restoPhone ? "#1a4d2e" : T.border,
+                  color: restoPhone ? "#fff" : T.textTer,
+                  border: "none", borderRadius: 6,
+                  padding: "7px 16px", fontSize: 13, fontWeight: 700,
+                  cursor: restoPhone ? "pointer" : "default",
+                  transition: "background-color 0.12s", fontFamily: "inherit", flexShrink: 0,
+                }}
+              >
+                {copied ? <><Copy size={13} /> Copié !</> : <><Copy size={13} /> Partager</>}
+              </button>
+            </div>
           </div>
         </div>
       </header>
+
+      {/* ─── Stale data warning ─────────────────────────────────────── */}
+      {isStale && (
+        <div style={{
+          backgroundColor: "#fffbeb", borderBottom: "1px solid #fde68a",
+          padding: "8px 20px", display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ fontSize: 13, color: "#b45309", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            <AlertTriangle size={13} /> Données en retard — vérifiez votre connexion
+          </span>
+          <button
+            onClick={() => void load()}
+            style={{
+              marginLeft: "auto", fontSize: 12, color: "#b45309",
+              border: "1px solid #fde68a", borderRadius: 6,
+              padding: "3px 10px", backgroundColor: "#fff",
+              cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
+            }}
+          >
+            Actualiser
+          </button>
+        </div>
+      )}
 
       {/* ─── Banner orange ──────────────────────────────────────────── */}
       {showOrangeBanner && (
@@ -752,7 +868,7 @@ export default function CommandesPage() {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 18 }}>⏳</span>
+            <AlertTriangle size={18} style={{ color: "#b45309", flexShrink: 0 }} />
             <div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#b45309" }}>
                 Votre période d&apos;essai expire dans {trialDaysLeft} jour{(trialDaysLeft ?? 0) > 1 ? "s" : ""}
@@ -768,7 +884,7 @@ export default function CommandesPage() {
             borderRadius: 6, padding: "7px 16px",
             fontSize: 13, fontWeight: 700, textDecoration: "none",
           }}>
-            💬 Passer en actif
+            <MessageCircle size={13} /> Passer en actif
           </a>
         </div>
       )}
@@ -781,7 +897,7 @@ export default function CommandesPage() {
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 18 }}>🚫</span>
+            <XCircle size={18} style={{ color: T.danger, flexShrink: 0 }} />
             <div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: T.danger }}>
                 Votre essai a expiré — Votre bot est suspendu
@@ -797,7 +913,7 @@ export default function CommandesPage() {
             borderRadius: 6, padding: "7px 16px",
             fontSize: 13, fontWeight: 700, textDecoration: "none",
           }}>
-            💬 Réactiver
+            <MessageCircle size={13} /> Réactiver
           </a>
         </div>
       )}
@@ -870,7 +986,9 @@ export default function CommandesPage() {
             boxShadow: T.shadowSm, border: `1px solid ${T.border}`,
             padding: "80px 32px", textAlign: "center",
           }}>
-            <div style={{ fontSize: 40, marginBottom: 16, letterSpacing: 4 }}>📱 → 🤖 → ✅</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center", marginBottom: 16, color: T.textTer }}>
+            <Copy size={28} /><span style={{ fontSize: 20, fontWeight: 300 }}>→</span><Bot size={28} /><span style={{ fontSize: 20, fontWeight: 300 }}>→</span><Truck size={28} />
+          </div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>
               Votre assistant attend des commandes
             </h2>
@@ -888,7 +1006,7 @@ export default function CommandesPage() {
                 cursor: restoPhone ? "pointer" : "default", fontFamily: "inherit",
               }}
             >
-              {copied ? "✓ Copié !" : "📱 Copier le numéro WhatsApp"}
+              {copied ? <><Copy size={14} /> Copié !</> : <><Copy size={14} /> Copier le numéro WhatsApp</>}
             </button>
           </div>
         ) : (
@@ -906,7 +1024,7 @@ export default function CommandesPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
-                  {filteredOrders.map((order, idx) => {
+                  {filteredOrders.map((order) => {
                     const badge   = STATUS_BADGE[order.status] ?? STATUS_BADGE.pending;
                     const urg     = urgencyLevel(order);
                     const isSelected = selectedOrder?.id === order.id;
@@ -939,19 +1057,22 @@ export default function CommandesPage() {
                         }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 12, fontWeight: 800, color: T.textPrimary }}>
-                              {orderNum(idx)}
+                              {orderNum(order.id)}
                             </span>
-                            <span style={{ fontSize: 11, color: URG_TIMER[urg], fontWeight: urg > 0 ? 700 : 400 }}>
-                              {urg > 0 ? `⏱ ${mins} min` : time}
+                            <span style={{ fontSize: 11, color: URG_TIMER[urg], fontWeight: urg > 0 ? 700 : 400, display: "flex", alignItems: "center", gap: 3 }}>
+                              {urg > 0 ? <><Timer size={10} />{mins} min</> : time}
                             </span>
                           </div>
-                          <span style={{
-                            backgroundColor: badge.bg, color: badge.color,
-                            fontSize: 11, fontWeight: 700,
-                            padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap" as const,
-                          }}>
-                            {badge.label}
-                          </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{
+                              backgroundColor: badge.bg, color: badge.color,
+                              fontSize: 11, fontWeight: 700,
+                              padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap" as const,
+                            }}>
+                              {badge.label}
+                            </span>
+                            <span className="rf-card-caret" style={{ fontSize: 16, color: T.textTer, lineHeight: 1, opacity: 0.5 }}>›</span>
+                          </div>
                         </div>
 
                         {/* Card body */}
@@ -966,8 +1087,8 @@ export default function CommandesPage() {
                             <span style={{ fontSize: 11, color: T.textSec }}>FCFA</span>
                           </p>
                           {order.zone_livraison && (
-                            <p style={{ margin: "5px 0 0", fontSize: 12, color: T.textTer }}>
-                              🚚 {order.zone_livraison}
+                            <p style={{ margin: "5px 0 0", fontSize: 12, color: T.textTer, display: "flex", alignItems: "center", gap: 4 }}>
+                              <Truck size={11} /> {order.zone_livraison}
                             </p>
                           )}
                         </div>
@@ -1002,7 +1123,7 @@ export default function CommandesPage() {
                   padding: "60px 24px",
                   textAlign: "center",
                 }}>
-                  <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.4 }}>👆</div>
+                  <MousePointerClick size={28} style={{ color: T.textTer, opacity: 0.4, marginBottom: 12 }} />
                   <p style={{ fontSize: 14, color: T.textTer, margin: 0 }}>
                     Sélectionnez une commande pour voir les détails
                   </p>
@@ -1151,6 +1272,31 @@ export default function CommandesPage() {
               }}>➤</div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ─── Undo toast ──────────────────────────────────────────────── */}
+      {undoToast && (
+        <div style={{
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+          zIndex: 300, display: "flex", alignItems: "center", gap: 12,
+          backgroundColor: T.textPrimary, color: "#fff",
+          padding: "12px 20px", borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,.20)",
+          fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" as const,
+          fontFamily: T.font,
+        }}>
+          {undoToast.label}
+          <button
+            onClick={handleUndo}
+            style={{
+              backgroundColor: "rgba(255,255,255,0.18)", border: "none",
+              color: "#fff", padding: "5px 12px", borderRadius: 6,
+              fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Annuler
+          </button>
         </div>
       )}
     </>
