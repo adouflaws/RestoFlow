@@ -7,15 +7,12 @@ import {
   type MenuItem,
   type ExtractedOrder,
 } from "@/lib/ai/extract-order";
-import {
-  sendMessage as waSendMessage,
-  sendConfirmation as waSendConfirmation,
-} from "@/lib/whatsapp/send";
+import { sendMessage as waSendMessage } from "@/lib/whatsapp/send";
 
 const anthropic = new Anthropic();
 
 // ------------------------------------------------------------------
-// Types internes
+// Types
 // ------------------------------------------------------------------
 
 interface RequestBody {
@@ -28,11 +25,18 @@ interface RequestBody {
   message_type: string;
 }
 
+interface ZoneDraft {
+  nom_zone: string;
+  frais: number;
+  quartier_client: string;
+}
+
 interface ConversationMeta {
   commande_draft?: ExtractedOrder;
-  attente_paiement?: boolean;
   attente_quartier?: boolean;
-  mode_paiement_choisi?: "mobile_money" | "especes";
+  attente_confirmation?: boolean;
+  zone_draft?: ZoneDraft;
+  sur_place?: boolean;
   historique?: HistoryEntry[];
 }
 
@@ -48,6 +52,8 @@ interface HistoryEntry {
   text: string;
   at: string;
 }
+
+type DraftItem = { nom: string; quantite: number; prix_unitaire: number };
 
 // ------------------------------------------------------------------
 // POST — Orchestrateur central
@@ -89,14 +95,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
   }
 
-  // ----- Vérification abonnement (trial expiré / suspendu) -----
+  // ----- Vérification abonnement -----
 
   const SUSPENDED_MSG =
     "Ce service est temporairement indisponible. Veuillez contacter le restaurant directement.";
 
   if (restaurant.statut_abonnement === "trial") {
     const trialExpiry = new Date(restaurant.created_at as string);
-    trialExpiry.setDate(trialExpiry.getDate() + 14);
+    trialExpiry.setDate(trialExpiry.getDate() + 7);
     if (new Date() > trialExpiry) {
       await supabaseAdmin
         .from("restaurants")
@@ -113,6 +119,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ----- Vérification limite Starter (200 commandes/mois) -----
+
   if ((restaurant as { plan?: string }).plan === "starter") {
     const startOfMonth = new Date(
       new Date().getFullYear(), new Date().getMonth(), 1
@@ -163,24 +170,16 @@ export async function POST(req: NextRequest) {
     if (createError || !newConv) {
       return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 });
     }
-
     conversationData = newConv;
   }
 
   const conversation = conversationData!;
-
-  const meta: ConversationMeta =
-    (conversation.metadata as ConversationMeta) ?? {};
-  const historique: HistoryEntry[] = meta.historique ?? [];
+  const meta: ConversationMeta = (conversation.metadata as ConversationMeta) ?? {};
 
   const horaires =
     typeof restaurant.opening_hours === "object"
       ? JSON.stringify(restaurant.opening_hours)
       : String(restaurant.opening_hours ?? "Non renseigné");
-
-  const menuText = menuItems
-    .map((m) => `${m.name} (${m.category}) — ${m.price} FCFA`)
-    .join(", ");
 
   // ----- Vérification des horaires d'ouverture -----
 
@@ -193,65 +192,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ----- Étape 4 : réponse quartier (livraison) -----
+  // ------------------------------------------------------------------
+  // Machine d'états commande
+  // ------------------------------------------------------------------
 
-  if (meta.commande_draft && meta.attente_quartier) {
-    const quartier = message.trim();
-    const reply = await handleQuartier(
-      quartier,
-      meta.commande_draft,
-      meta.mode_paiement_choisi ?? "especes",
-      restaurant_id,
-      conversation.id,
-      customer_name,
-      customer_phone,
-      meta
-    );
-    await saveExchange(conversation.id, meta, message, reply);
-    await waSendMessage(customer_phone, reply, restaurant_id);
-    return NextResponse.json({ ok: true });
-  }
+  // État C — Attente confirmation OUI/NON (résumé final avec frais déjà affiché)
+  if (meta.commande_draft && meta.attente_confirmation) {
+    if (isConfirmation(message)) {
+      const delivery = meta.zone_draft
+        ? {
+            zone_livraison: meta.zone_draft.nom_zone,
+            frais_livraison: meta.zone_draft.frais,
+            quartier_client: meta.zone_draft.quartier_client,
+          }
+        : null;
 
-  // ----- Étape 3 : choix du mode de paiement -----
-
-  if (meta.commande_draft && meta.attente_paiement) {
-    const mode = detectPaymentMode(message);
-
-    if (mode === "mobile_money") {
-      meta.attente_paiement = false;
-      meta.attente_quartier = true;
-      meta.mode_paiement_choisi = "mobile_money";
-      await saveMeta(conversation.id, meta);
-      const reply =
-        "Dans quel quartier souhaitez-vous être livré ?\n\n" +
-        "Envoyez le nom de votre quartier (ex: Hamdallaye, Badalabougou, ACI 2000...)";
-      await saveExchange(conversation.id, meta, message, reply);
-      await waSendMessage(customer_phone, reply, restaurant_id);
-      return NextResponse.json({ ok: true });
-    }
-
-    if (mode === "especes_livraison") {
-      meta.attente_paiement = false;
-      meta.attente_quartier = true;
-      meta.mode_paiement_choisi = "especes";
-      await saveMeta(conversation.id, meta);
-      const reply =
-        "Dans quel quartier souhaitez-vous être livré ?\n\n" +
-        "Envoyez le nom de votre quartier (ex: Hamdallaye, Badalabougou, ACI 2000...)";
-      await saveExchange(conversation.id, meta, message, reply);
-      await waSendMessage(customer_phone, reply, restaurant_id);
-      return NextResponse.json({ ok: true });
-    }
-
-    if (mode === "especes_surplace") {
       const reply = await createOrder(
         meta.commande_draft,
         restaurant_id,
         conversation.id,
         customer_name,
         customer_phone,
-        "especes",
-        null
+        delivery
       );
       await clearDraft(conversation.id, meta);
       await saveExchange(conversation.id, meta, message, reply);
@@ -259,36 +221,80 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    if (isRejection(message)) {
+      await clearDraft(conversation.id, meta);
+      const reply =
+        "Pas de souci, votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez.";
+      await saveExchange(conversation.id, meta, message, reply);
+      await waSendMessage(customer_phone, reply, restaurant_id);
+      return NextResponse.json({ ok: true });
+    }
+
     const reply =
-      "Veuillez choisir votre mode de paiement :\n\n" +
-      "1️⃣ Orange Money ou Wave (livraison)\n" +
-      "2️⃣ Espèces à la livraison\n" +
-      "3️⃣ Espèces sur place";
+      "Répondez OUI pour confirmer votre commande ou NON pour l'annuler.";
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
-  // ----- Étape 2 : confirmation ou annulation du draft -----
+  // État B — Attente quartier de livraison
+  if (meta.commande_draft && meta.attente_quartier) {
+    const quartier = message.trim();
 
-  if (meta.commande_draft && isConfirmation(message)) {
-    meta.attente_paiement = true;
+    const { data: zones } = await supabaseAdmin
+      .from("zones_livraison")
+      .select("id, nom_zone, quartiers, frais")
+      .eq("restaurant_id", restaurant_id)
+      .eq("actif", true);
+
+    const match = findDeliveryZone(quartier, (zones ?? []) as DeliveryZone[]);
+
+    if (!match) {
+      await clearDraft(conversation.id, meta);
+      const reply =
+        "Désolé, nous ne livrons pas encore dans votre quartier. Vous pouvez récupérer votre commande sur place.";
+      await saveExchange(conversation.id, meta, message, reply);
+      await waSendMessage(customer_phone, reply, restaurant_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    meta.attente_quartier = false;
+    meta.attente_confirmation = true;
+    meta.zone_draft = {
+      nom_zone: match.nom_zone,
+      frais: match.frais,
+      quartier_client: quartier,
+    };
     await saveMeta(conversation.id, meta);
 
+    const draft = meta.commande_draft;
+    const items = (draft.items as DraftItem[] | null) ?? [];
+    const totalFinal = draft.total + match.frais;
+
+    const itemsText = items
+      .map(
+        (it) =>
+          `- ${it.quantite}x ${it.nom} : ${(it.quantite * it.prix_unitaire).toLocaleString("fr-FR")} FCFA`
+      )
+      .join("\n");
+
     const reply =
-      "✅ Commande confirmée ! Comment souhaitez-vous payer ?\n\n" +
-      "1️⃣ Orange Money ou Wave (livraison)\n" +
-      "2️⃣ Espèces à la livraison\n" +
-      "3️⃣ Espèces sur place";
+      `Voici le résumé de votre commande :\n\n` +
+      `${itemsText}\n\n` +
+      `Frais de livraison (${match.nom_zone}) : ${match.frais.toLocaleString("fr-FR")} FCFA\n` +
+      `Total général : ${totalFinal.toLocaleString("fr-FR")} FCFA\n\n` +
+      `Confirmez-vous votre commande ? Répondez OUI pour confirmer.`;
+
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
+  // Annulation si draft en attente sans état particulier
   if (meta.commande_draft && isRejection(message)) {
     await clearDraft(conversation.id, meta);
     const reply =
-      "Pas de souci ! Votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez 😊";
+      "Pas de souci, votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez.";
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
@@ -320,6 +326,10 @@ export async function POST(req: NextRequest) {
 
   // ----- Classifier le message -----
 
+  const menuText = menuItems
+    .map((m) => `${m.name} (${m.category}) — ${m.price} FCFA`)
+    .join(", ");
+
   const intent = await classifyMessage(message, {
     name: restaurant.name,
     menu: menuText,
@@ -335,24 +345,24 @@ export async function POST(req: NextRequest) {
         restaurant_id,
         restaurant.name,
         horaires,
-        restaurant.address ?? ""
+        restaurant.address ?? "",
+        menuItems
       );
       break;
 
     case "commande": {
-      const result = await handleCommande(message, menuItems, conversation.id, meta);
-      if (result.hasItems) {
-        await saveExchange(conversation.id, meta, message, result.reply);
-        await waSendConfirmation(
-          customer_phone,
-          result.reply,
-          result.total,
-          restaurant_id
-        );
-        return NextResponse.json({ ok: true });
-      }
-      reply = result.reply;
-      break;
+      const extracted = await handleCommande(
+        message,
+        menuItems,
+        restaurant_id,
+        conversation.id,
+        customer_name,
+        customer_phone,
+        meta
+      );
+      await saveExchange(conversation.id, meta, message, extracted.reply);
+      await waSendMessage(customer_phone, extracted.reply, restaurant_id);
+      return NextResponse.json({ ok: true });
     }
 
     case "hors_cadre":
@@ -364,6 +374,9 @@ export async function POST(req: NextRequest) {
         message
       );
       break;
+
+    default:
+      reply = formatMenu(menuItems, restaurant.name);
   }
 
   await saveExchange(conversation.id, meta, message, reply);
@@ -381,13 +394,16 @@ async function handleFaq(
   restaurantId: string,
   restaurantName: string,
   horaires: string,
-  address: string
+  address: string,
+  menuItems: MenuItem[]
 ): Promise<string> {
   const { data: faqs } = await supabaseAdmin
     .from("faq_items")
     .select("question, answer")
     .eq("restaurant_id", restaurantId)
     .eq("is_published", true);
+
+  const menuFormatted = formatMenu(menuItems, restaurantName);
 
   if (faqs && faqs.length > 0) {
     const faqText = faqs
@@ -403,11 +419,14 @@ Réponds à la question du client en te basant sur ces informations :
 FAQ :
 ${faqText}
 
+Menu complet :
+${menuFormatted}
+
 Infos :
 - Adresse : ${address || "Non renseignée"}
 - Horaires : ${horaires}
 
-Réponds en français, de manière chaleureuse et concise. Si tu ne trouves pas la réponse dans la FAQ, utilise les infos du restaurant.`,
+Réponds en français, de manière chaleureuse et concise. Si le client demande le menu, affiche-le formaté avec les prix en FCFA.`,
       messages: [{ role: "user", content: message }],
     });
 
@@ -420,11 +439,14 @@ Réponds en français, de manière chaleureuse et concise. Si tu ne trouves pas 
     model: "claude-haiku-4-5",
     max_tokens: 512,
     system: `Tu es l'assistant du restaurant "${restaurantName}" à Bamako.
+Menu complet :
+${menuFormatted}
+
 Infos disponibles :
 - Adresse : ${address || "Non renseignée"}
 - Horaires : ${horaires}
 
-Réponds à la question du client en français, de manière chaleureuse et concise. Si tu ne connais pas la réponse, dis-le poliment et invite le client à appeler le restaurant.`,
+Réponds à la question du client en français, de manière chaleureuse et concise. Si le client demande le menu, affiche-le formaté avec les prix en FCFA.`,
     messages: [{ role: "user", content: message }],
   });
 
@@ -436,32 +458,61 @@ Réponds à la question du client en français, de manière chaleureuse et conci
 async function handleCommande(
   message: string,
   menuItems: MenuItem[],
+  restaurantId: string,
   conversationId: string,
+  customerName: string,
+  customerPhone: string,
   meta: ConversationMeta
-): Promise<{ reply: string; hasItems: boolean; total: number }> {
+): Promise<{ reply: string }> {
   const result = await extractOrder(message, menuItems);
 
   if (!result.items) {
-    return { reply: result.message_confirmation, hasItems: false, total: 0 };
+    return { reply: result.message_confirmation };
   }
 
   meta.commande_draft = result;
-  await supabaseAdmin
-    .from("conversations")
-    .update({ metadata: meta })
-    .eq("id", conversationId);
 
-  return {
-    reply: result.message_confirmation,
-    hasItems: true,
-    total: result.total,
-  };
-}
+  // Vérifier si le restaurant a des zones de livraison
+  const { data: zones } = await supabaseAdmin
+    .from("zones_livraison")
+    .select("id")
+    .eq("restaurant_id", restaurantId)
+    .eq("actif", true)
+    .limit(1);
 
-interface DeliveryInfo {
-  zone_livraison: string;
-  frais_livraison: number;
-  adresse_livraison: string;
+  const hasDelivery = zones && zones.length > 0;
+
+  if (hasDelivery) {
+    // État B — demander le quartier
+    meta.attente_quartier = true;
+    await saveMeta(conversationId, meta);
+
+    const reply =
+      `${result.message_confirmation}\n\n` +
+      `Dans quel quartier souhaitez-vous être livré ?`;
+    return { reply };
+  }
+
+  // Pas de livraison — résumé + OUI directement (récupération sur place)
+  meta.attente_confirmation = true;
+  meta.sur_place = true;
+  await saveMeta(conversationId, meta);
+
+  const items = (result.items as DraftItem[] | null) ?? [];
+  const itemsText = items
+    .map(
+      (it) =>
+        `- ${it.quantite}x ${it.nom} : ${(it.quantite * it.prix_unitaire).toLocaleString("fr-FR")} FCFA`
+    )
+    .join("\n");
+
+  const reply =
+    `Voici votre commande (récupération sur place) :\n\n` +
+    `${itemsText}\n\n` +
+    `Total : ${result.total.toLocaleString("fr-FR")} FCFA\n\n` +
+    `Confirmez-vous votre commande ? Répondez OUI pour confirmer.`;
+
+  return { reply };
 }
 
 async function createOrder(
@@ -470,137 +521,49 @@ async function createOrder(
   conversationId: string,
   customerName: string,
   customerPhone: string,
-  modePaiement: "mobile_money" | "especes",
-  delivery: DeliveryInfo | null
+  delivery: { zone_livraison: string; frais_livraison: number; quartier_client: string } | null
 ): Promise<string> {
   const fraisLivraison = delivery?.frais_livraison ?? 0;
   const totalFinal = draft.total + fraisLivraison;
 
-  const { data: order } = await supabaseAdmin
-    .from("orders")
-    .insert({
-      restaurant_id: restaurantId,
-      conversation_id: conversationId,
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      items: draft.items,
-      total: totalFinal,
-      status: "preparing",
-      mode_paiement: modePaiement,
-      frais_livraison: fraisLivraison,
-      zone_livraison: delivery?.zone_livraison ?? null,
-      adresse_livraison: delivery?.adresse_livraison ?? null,
-    })
-    .select("id")
-    .single();
+  await supabaseAdmin.from("orders").insert({
+    restaurant_id: restaurantId,
+    conversation_id: conversationId,
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    items: draft.items,
+    total: totalFinal,
+    status: "pending",
+    mode_paiement: "especes",
+    frais_livraison: fraisLivraison,
+    zone_livraison: delivery?.zone_livraison ?? null,
+    adresse_livraison: delivery?.quartier_client ?? null,
+  });
 
-  const paiementLabel =
-    modePaiement === "especes" ? "espèces" : "mobile money";
   const livraisonLabel = delivery
-    ? `Livraison à ${delivery.adresse_livraison} (${fraisLivraison.toLocaleString("fr-FR")} FCFA)`
-    : "Retrait sur place";
+    ? `livraison — ${fraisLivraison.toLocaleString("fr-FR")} FCFA de frais`
+    : "retrait sur place";
 
   await notifyManager(
     restaurantId,
     customerName,
     customerPhone,
-    `🆕 Commande #${order?.id?.slice(0, 8)} — ${totalFinal.toLocaleString("fr-FR")} FCFA — ${paiementLabel} — ${livraisonLabel}`
+    `Nouvelle commande — ${totalFinal.toLocaleString("fr-FR")} FCFA — espèces — ${livraisonLabel}`
   );
 
-  if (modePaiement === "especes") {
-    let reply = "Parfait ! Votre commande est en préparation.";
-    if (delivery) {
-      reply +=
-        ` Paiement à la livraison 🛵\n\n` +
-        `📍 Livraison à ${delivery.adresse_livraison}\n` +
-        `🚚 Frais de livraison : ${fraisLivraison.toLocaleString("fr-FR")} FCFA\n` +
-        `💰 Total final : ${totalFinal.toLocaleString("fr-FR")} FCFA`;
-    } else {
-      reply += " Paiement au comptoir. À très bientôt !";
-    }
-    return reply;
+  if (delivery) {
+    return (
+      `Commande confirmée ! Notre livreur sera chez vous dans environ 30-45 minutes.\n` +
+      `Paiement en espèces à la livraison.\n\n` +
+      `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA`
+    );
   }
 
-  // TODO: intégrer Geniuspay pour générer le lien de paiement
   return (
-    "Merci ! Votre commande est enregistrée.\n\n" +
-    "Le lien de paiement mobile money sera bientôt disponible, " +
-    "nous vous contactons dans quelques minutes 📱"
+    `Commande confirmée ! Votre commande est en préparation.\n` +
+    `Vous pouvez passer la récupérer sous peu. Paiement sur place.\n\n` +
+    `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA`
   );
-}
-
-async function handleQuartier(
-  quartier: string,
-  draft: ExtractedOrder,
-  modePaiement: "mobile_money" | "especes",
-  restaurantId: string,
-  conversationId: string,
-  customerName: string,
-  customerPhone: string,
-  meta: ConversationMeta
-): Promise<string> {
-  const { data: zones } = await supabaseAdmin
-    .from("zones_livraison")
-    .select("id, nom_zone, quartiers, frais")
-    .eq("restaurant_id", restaurantId)
-    .eq("actif", true);
-
-  if (!zones || zones.length === 0) {
-    await clearDraft(conversationId, meta);
-    return (
-      "Pour la livraison, merci de nous contacter directement " +
-      "pour confirmer les frais selon votre quartier."
-    );
-  }
-
-  const match = findDeliveryZone(quartier, zones as DeliveryZone[]);
-
-  if (!match) {
-    await clearDraft(conversationId, meta);
-    return (
-      "Désolé, nous ne livrons pas encore dans votre quartier. " +
-      "Vous pouvez récupérer votre commande sur place."
-    );
-  }
-
-  const delivery: DeliveryInfo = {
-    zone_livraison: match.nom_zone,
-    frais_livraison: match.frais,
-    adresse_livraison: quartier,
-  };
-
-  const reply = await createOrder(
-    draft,
-    restaurantId,
-    conversationId,
-    customerName,
-    customerPhone,
-    modePaiement,
-    delivery
-  );
-
-  await clearDraft(conversationId, meta);
-  return reply;
-}
-
-function findDeliveryZone(
-  quartier: string,
-  zones: DeliveryZone[]
-): DeliveryZone | null {
-  const input = quartier.toLowerCase().trim();
-
-  for (const zone of zones) {
-    for (const q of zone.quartiers) {
-      if (
-        input.includes(q.toLowerCase()) ||
-        q.toLowerCase().includes(input)
-      ) {
-        return zone;
-      }
-    }
-  }
-
-  return null;
 }
 
 async function handleHorsCadre(
@@ -612,7 +575,6 @@ async function handleHorsCadre(
 ): Promise<string> {
   await supabaseAdmin.from("conversations").update({ status: "open" }).eq("id", conversationId);
 
-  // Récupère le numéro WhatsApp du gérant depuis restaurants.phone
   const { data: resto } = await supabaseAdmin
     .from("restaurants")
     .select("phone")
@@ -621,57 +583,67 @@ async function handleHorsCadre(
 
   if (resto?.phone) {
     const managerMsg =
-      `Un client a besoin de vous ! 📱\n\n` +
+      `Un client a besoin de vous !\n\n` +
       `Numéro client : ${customerPhone}\n\n` +
       `Dernier message : ${message}\n\n` +
       `Répondez directement à ce numéro pour prendre en charge.`;
-
     await waSendMessage(resto.phone, managerMsg, restaurantId);
   }
 
   await notifyManager(restaurantId, customerName, customerPhone, message);
 
-  return "Je transmets votre message à notre équipe. Un membre de notre staff va vous répondre dans quelques minutes. Merci de votre patience 🙏";
+  return "Je transmets votre message à notre équipe. Un membre de notre staff va vous répondre dans quelques minutes. Merci de votre patience.";
 }
 
 // ------------------------------------------------------------------
 // Utilitaires
 // ------------------------------------------------------------------
 
-function detectPaymentMode(
-  msg: string
-): "mobile_money" | "especes_livraison" | "especes_surplace" | null {
-  const lower = msg.toLowerCase().trim();
+function formatMenu(items: MenuItem[], restaurantName: string): string {
+  if (!items.length) {
+    return `Bonjour ! Bienvenue chez ${restaurantName}. Notre menu est en cours de mise à jour. Revenez bientôt !`;
+  }
 
-  const mobileMoney = ["1", "orange", "orange money", "wave", "mobile money", "om"];
-  if (mobileMoney.some((k) => lower.includes(k))) return "mobile_money";
+  const byCategory: Record<string, MenuItem[]> = {};
+  for (const item of items) {
+    const cat = item.category || "Plats";
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(item);
+  }
 
-  const surplace = ["3", "sur place", "comptoir", "récupérer", "recuperer"];
-  if (surplace.some((k) => lower.includes(k))) return "especes_surplace";
+  let text = `Bonjour ! Voici notre menu :\n\n`;
+  for (const [cat, catItems] of Object.entries(byCategory)) {
+    text += `*${cat}*\n`;
+    for (const item of catItems) {
+      text += `- ${item.name} : ${Number(item.price).toLocaleString("fr-FR")} FCFA\n`;
+    }
+    text += "\n";
+  }
+  text += "Pour commander, dites-nous simplement ce que vous souhaitez !";
+  return text;
+}
 
-  const livraison = ["2", "espèces", "especes", "livraison", "cash"];
-  if (livraison.some((k) => lower.includes(k))) return "especes_livraison";
-
+function findDeliveryZone(
+  quartier: string,
+  zones: DeliveryZone[]
+): DeliveryZone | null {
+  const input = quartier.toLowerCase().trim();
+  for (const zone of zones) {
+    for (const q of zone.quartiers) {
+      if (input.includes(q.toLowerCase()) || q.toLowerCase().includes(input)) {
+        return zone;
+      }
+    }
+  }
   return null;
 }
 
 function isConfirmation(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
   const keywords = [
-    "oui",
-    "ok",
-    "d'accord",
-    "daccord",
-    "je confirme",
-    "confirme",
-    "c'est bon",
-    "cest bon",
-    "go",
-    "parfait",
-    "valide",
-    "je valide",
-    "yes",
-    "awa",
+    "oui", "ok", "d'accord", "daccord", "je confirme", "confirme",
+    "c'est bon", "cest bon", "go", "parfait", "valide", "je valide",
+    "yes", "awa",
   ];
   return keywords.some((k) => lower.includes(k));
 }
@@ -679,15 +651,8 @@ function isConfirmation(msg: string): boolean {
 function isRejection(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
   const keywords = [
-    "non",
-    "annule",
-    "annuler",
-    "j'annule",
-    "pas ça",
-    "laisse tomber",
-    "stop",
-    "arrête",
-    "ayi",
+    "non", "annule", "annuler", "j'annule", "pas ça", "laisse tomber",
+    "stop", "arrête", "ayi",
   ];
   return keywords.some((k) => lower.includes(k));
 }
@@ -700,18 +665,12 @@ async function saveExchange(
 ) {
   const historique = meta.historique ?? [];
   const now = new Date().toISOString();
-
   historique.push(
     { role: "client", text: clientMsg, at: now },
     { role: "bot", text: botReply, at: now }
   );
-
-  if (historique.length > 50) {
-    historique.splice(0, historique.length - 50);
-  }
-
+  if (historique.length > 50) historique.splice(0, historique.length - 50);
   meta.historique = historique;
-
   await supabaseAdmin
     .from("conversations")
     .update({ metadata: meta })
@@ -725,19 +684,17 @@ async function saveMeta(conversationId: string, meta: ConversationMeta) {
     .eq("id", conversationId);
 }
 
-async function clearDraft(
-  conversationId: string,
-  meta: ConversationMeta
-) {
+async function clearDraft(conversationId: string, meta: ConversationMeta) {
   delete meta.commande_draft;
-  delete meta.attente_paiement;
   delete meta.attente_quartier;
-  delete meta.mode_paiement_choisi;
+  delete meta.attente_confirmation;
+  delete meta.zone_draft;
+  delete meta.sur_place;
   await saveMeta(conversationId, meta);
 }
 
 // ------------------------------------------------------------------
-// Vérification des horaires (fuseau Afrique/Bamako = UTC+0)
+// Horaires (fuseau Afrique/Bamako = UTC+0)
 // ------------------------------------------------------------------
 
 const DAYS_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
@@ -763,8 +720,7 @@ function checkOpeningHours(
   }
 
   const now = new Date();
-  // Africa/Bamako = UTC+0, même offset que UTC, pas de DST
-  const utcDay = now.getUTCDay(); // 0=dimanche … 6=samedi
+  const utcDay = now.getUTCDay();
   const currentDay = DAYS_FR[utcDay];
   const currentMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
 
@@ -772,21 +728,18 @@ function checkOpeningHours(
   if (todaySlot) {
     const parsed = parseSlotMinutes(todaySlot);
     if (parsed) {
-      // Actuellement ouvert
       if (currentMinutes >= parsed.openMin && currentMinutes < parsed.closeMin) {
         return { open: true };
       }
-      // Pas encore ouvert aujourd'hui
       if (currentMinutes < parsed.openMin) {
         return {
           open: false,
-          closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons aujourd'hui à ${slotOpenTime(todaySlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊`,
+          closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons aujourd'hui à ${slotOpenTime(todaySlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.`,
         };
       }
     }
   }
 
-  // Cherche la prochaine ouverture dans les 7 prochains jours
   for (let i = 1; i <= 7; i++) {
     const nextDay = DAYS_FR[(utcDay + i) % 7];
     const nextSlot = openingHours[nextDay];
@@ -794,7 +747,7 @@ function checkOpeningHours(
       const dayLabel = i === 1 ? "demain" : nextDay;
       return {
         open: false,
-        closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons ${dayLabel} à ${slotOpenTime(nextSlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊`,
+        closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons ${dayLabel} à ${slotOpenTime(nextSlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.`,
       };
     }
   }
@@ -802,7 +755,7 @@ function checkOpeningHours(
   return {
     open: false,
     closedMessage:
-      "Bonjour ! Nous sommes actuellement fermés. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture 😊",
+      "Bonjour ! Nous sommes actuellement fermés. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.",
   };
 }
 
@@ -820,7 +773,6 @@ async function notifyManager(
 
   if (!owners?.length) return;
 
-  // Stocker la notification dans metadata pour le dashboard
   await supabaseAdmin.from("conversations").insert({
     restaurant_id: restaurantId,
     customer_name: "Système",
