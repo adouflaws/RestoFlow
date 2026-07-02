@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { classifyMessage } from "@/lib/ai/classify";
-import {
-  extractOrder,
-  type MenuItem,
-  type ExtractedOrder,
-} from "@/lib/ai/extract-order";
+import { extractOrder, type MenuItem, type OrderItem } from "@/lib/ai/extract-order";
 import { sendMessage as waSendMessage } from "@/lib/whatsapp/send";
 
 const anthropic = new Anthropic();
@@ -25,19 +21,28 @@ interface RequestBody {
   message_type: string;
 }
 
+interface OrderDraft {
+  items: OrderItem[];
+  total: number;
+}
+
 interface ZoneDraft {
   nom_zone: string;
   frais: number;
   quartier_client: string;
 }
 
+type BotEtat = "attente_type_livraison" | "attente_quartier" | "attente_confirmation";
+
 interface ConversationMeta {
-  commande_draft?: ExtractedOrder;
-  attente_quartier?: boolean;
-  attente_confirmation?: boolean;
+  commande_draft?: OrderDraft;
+  etat?: BotEtat;
   zone_draft?: ZoneDraft;
   sur_place?: boolean;
   historique?: HistoryEntry[];
+  // backward-compat avec l'ancien format
+  attente_quartier?: boolean;
+  attente_confirmation?: boolean;
 }
 
 interface DeliveryZone {
@@ -53,7 +58,17 @@ interface HistoryEntry {
   at: string;
 }
 
-type DraftItem = { nom: string; quantite: number; prix_unitaire: number };
+interface Restaurant {
+  name: string;
+  address?: string;
+  phone?: string;
+  opening_hours?: Record<string, string>;
+  statut_abonnement: string;
+  created_at: string;
+  plan?: string;
+  ton_reponse?: string;
+  message_accueil?: string;
+}
 
 // ------------------------------------------------------------------
 // POST — Orchestrateur central
@@ -66,42 +81,46 @@ export async function POST(req: NextRequest) {
   }
 
   const body = (await req.json()) as RequestBody;
-  const {
-    restaurant_id,
-    customer_phone,
-    customer_name = "Client",
-    message,
-  } = body;
+  const { restaurant_id, customer_phone, customer_name = "Client", message } = body;
 
-  // ----- Charger restaurant + menu en parallèle -----
+  // ── Chargement COMPLET depuis Supabase — jamais de cache, jamais de données inventées ──
 
-  const [restaurantRes, menuRes] = await Promise.all([
+  const [restaurantRes, menuRes, zonesRes] = await Promise.all([
     supabaseAdmin
       .from("restaurants")
-      .select("name, address, phone, opening_hours, social_links, statut_abonnement, created_at, plan")
+      .select(
+        "name, address, phone, opening_hours, statut_abonnement, created_at, plan, ton_reponse, message_accueil"
+      )
       .eq("id", restaurant_id)
       .single(),
     supabaseAdmin
       .from("menu_items")
       .select("id, name, price, category, is_available")
       .eq("restaurant_id", restaurant_id)
-      .eq("is_available", true),
+      .order("category")
+      .order("name"),
+    supabaseAdmin
+      .from("zones_livraison")
+      .select("id, nom_zone, quartiers, frais")
+      .eq("restaurant_id", restaurant_id)
+      .eq("actif", true),
   ]);
 
-  const restaurant = restaurantRes.data;
-  const menuItems = (menuRes.data ?? []) as MenuItem[];
+  const restaurant = restaurantRes.data as Restaurant | null;
+  const allMenuItems = (menuRes.data ?? []) as MenuItem[];
+  const zones = (zonesRes.data ?? []) as DeliveryZone[];
 
   if (!restaurant) {
     return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
   }
 
-  // ----- Vérification abonnement -----
+  // ── Vérification abonnement ──
 
   const SUSPENDED_MSG =
     "Ce service est temporairement indisponible. Veuillez contacter le restaurant directement.";
 
   if (restaurant.statut_abonnement === "trial") {
-    const trialExpiry = new Date(restaurant.created_at as string);
+    const trialExpiry = new Date(restaurant.created_at);
     trialExpiry.setDate(trialExpiry.getDate() + 7);
     if (new Date() > trialExpiry) {
       await supabaseAdmin
@@ -118,11 +137,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ----- Vérification limite Starter (200 commandes/mois) -----
+  // ── Limite Plan Starter (200 commandes/mois) ──
 
-  if ((restaurant as { plan?: string }).plan === "starter") {
+  if (restaurant.plan === "starter") {
     const startOfMonth = new Date(
-      new Date().getFullYear(), new Date().getMonth(), 1
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1
     ).toISOString();
     const { count: monthlyCount } = await supabaseAdmin
       .from("orders")
@@ -139,7 +160,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ----- Trouver ou créer la conversation -----
+  // ── Conversation ──
 
   const { data: existingConv } = await supabaseAdmin
     .from("conversations")
@@ -175,29 +196,52 @@ export async function POST(req: NextRequest) {
 
   const conversation = conversationData!;
   const meta: ConversationMeta = (conversation.metadata as ConversationMeta) ?? {};
+  const historique = meta.historique ?? [];
 
-  const horaires =
-    typeof restaurant.opening_hours === "object"
-      ? JSON.stringify(restaurant.opening_hours)
-      : String(restaurant.opening_hours ?? "Non renseigné");
+  // Migration format legacy (anciens boolean) → nouveau etat enum
+  if (!meta.etat && meta.commande_draft) {
+    if (meta.attente_confirmation) meta.etat = "attente_confirmation";
+    else if (meta.attente_quartier) meta.etat = "attente_quartier";
+  }
 
-  // ----- Vérification des horaires d'ouverture -----
+  // ── Horaires d'ouverture (fuseau UTC+0 = Bamako) ──
 
-  const hoursResult = checkOpeningHours(
-    restaurant.opening_hours as Record<string, string> | null
-  );
+  const hoursResult = checkOpeningHours(restaurant.opening_hours ?? null, restaurant.name);
   if (!hoursResult.open) {
     await saveExchange(conversation.id, meta, message, hoursResult.closedMessage);
     await waSendMessage(customer_phone, hoursResult.closedMessage, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
-  // ------------------------------------------------------------------
-  // Machine d'états commande
-  // ------------------------------------------------------------------
+  // Seuls les plats disponibles sont mentionnés au client — jamais les autres
+  const availableItems = allMenuItems.filter((m) => m.is_available);
 
-  // État C — Attente confirmation OUI/NON (résumé final avec frais déjà affiché)
-  if (meta.commande_draft && meta.attente_confirmation) {
+  const horaires =
+    restaurant.opening_hours && Object.keys(restaurant.opening_hours).length > 0
+      ? JSON.stringify(restaurant.opening_hours)
+      : "Non renseigné";
+
+  // ==================================================================
+  // ÉTAPE 0 — Premier contact : message_accueil + menu complet
+  // ==================================================================
+
+  if (historique.length === 0) {
+    const welcomeBase =
+      restaurant.message_accueil?.trim() ||
+      `Bienvenue chez ${restaurant.name} ! Comment puis-je vous aider ?`;
+
+    const reply = `${welcomeBase}\n\n${formatMenuFull(availableItems)}`;
+    await saveExchange(conversation.id, meta, message, reply);
+    await waSendMessage(customer_phone, reply, restaurant_id);
+    return NextResponse.json({ ok: true });
+  }
+
+  // ==================================================================
+  // MACHINE D'ÉTATS
+  // ==================================================================
+
+  // ── ÉTAT : attente_confirmation — client répond OUI ou NON ──
+  if (meta.etat === "attente_confirmation" && meta.commande_draft) {
     if (isConfirmation(message)) {
       const delivery = meta.zone_draft
         ? {
@@ -207,13 +251,14 @@ export async function POST(req: NextRequest) {
           }
         : null;
 
-      const reply = await createOrder(
+      const reply = await doCreateOrder(
         meta.commande_draft,
         restaurant_id,
         conversation.id,
         customer_name,
         customer_phone,
-        delivery
+        delivery,
+        meta.sur_place ?? false
       );
       await clearDraft(conversation.id, meta);
       await saveExchange(conversation.id, meta, message, reply);
@@ -224,92 +269,157 @@ export async function POST(req: NextRequest) {
     if (isRejection(message)) {
       await clearDraft(conversation.id, meta);
       const reply =
-        "Pas de souci, votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez.";
+        "Commande annulée. N'hésitez pas à recommander quand vous voulez !";
       await saveExchange(conversation.id, meta, message, reply);
       await waSendMessage(customer_phone, reply, restaurant_id);
       return NextResponse.json({ ok: true });
     }
 
+    // Peut-être une modification de commande avant confirmation
+    if (containsMenuItem(message, availableItems)) {
+      const result = await extractOrder(message, availableItems);
+      if (result.items && result.items.length > 0) {
+        const newDraft: OrderDraft = {
+          items: result.items,
+          total: computeTotal(result.items),
+        };
+        meta.commande_draft = newDraft;
+        meta.etat = "attente_type_livraison";
+        delete meta.zone_draft;
+        delete meta.sur_place;
+        await saveMeta(conversation.id, meta);
+
+        const itemsText = newDraft.items
+          .map((it) => `- ${it.quantite}x ${it.nom}`)
+          .join("\n");
+        const reply =
+          `J'ai mis à jour votre commande :\n${itemsText}\n\n` +
+          (zones.length > 0
+            ? "Souhaitez-vous être livré ou récupérer votre commande sur place ?"
+            : buildSummaryNoDelivery(newDraft));
+        await saveExchange(conversation.id, meta, message, reply);
+        await waSendMessage(customer_phone, reply, restaurant_id);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
     const reply =
-      "Répondez OUI pour confirmer votre commande ou NON pour l'annuler.";
+      "Répondez *OUI* pour confirmer votre commande ou *NON* pour l'annuler.";
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
-  // État B — Attente quartier de livraison
-  if (meta.commande_draft && meta.attente_quartier) {
-    const quartier = message.trim();
-
-    const { data: zones } = await supabaseAdmin
-      .from("zones_livraison")
-      .select("id, nom_zone, quartiers, frais")
-      .eq("restaurant_id", restaurant_id)
-      .eq("actif", true);
-
-    const match = findDeliveryZone(quartier, (zones ?? []) as DeliveryZone[]);
+  // ── ÉTAT : attente_quartier — client donne son quartier de livraison ──
+  if (meta.etat === "attente_quartier" && meta.commande_draft) {
+    const quartierInput = message.trim();
+    const match = findDeliveryZone(quartierInput, zones);
 
     if (!match) {
-      await clearDraft(conversation.id, meta);
+      const zonesList =
+        zones.length > 0
+          ? zones
+              .map((z) => `- ${z.nom_zone} : ${z.frais.toLocaleString("fr-FR")} FCFA`)
+              .join("\n")
+          : "Aucune zone configurée.";
+
       const reply =
-        "Désolé, nous ne livrons pas encore dans votre quartier. Vous pouvez récupérer votre commande sur place.";
+        `Désolé, nous ne livrons pas encore dans ce quartier.\n\n` +
+        `Voici nos zones de livraison disponibles :\n${zonesList}\n\n` +
+        `Vous pouvez aussi récupérer votre commande *sur place*. Que préférez-vous ?`;
+
       await saveExchange(conversation.id, meta, message, reply);
       await waSendMessage(customer_phone, reply, restaurant_id);
       return NextResponse.json({ ok: true });
     }
 
-    meta.attente_quartier = false;
-    meta.attente_confirmation = true;
+    meta.etat = "attente_confirmation";
     meta.zone_draft = {
       nom_zone: match.nom_zone,
       frais: match.frais,
-      quartier_client: quartier,
+      quartier_client: quartierInput,
     };
     await saveMeta(conversation.id, meta);
 
-    const draft = meta.commande_draft;
-    const items = (draft.items as DraftItem[] | null) ?? [];
-    const totalFinal = draft.total + match.frais;
-
-    const itemsText = items
-      .map(
-        (it) =>
-          `- ${it.quantite}x ${it.nom} : ${(it.quantite * it.prix_unitaire).toLocaleString("fr-FR")} FCFA`
-      )
-      .join("\n");
-
-    const reply =
-      `Voici le résumé de votre commande :\n\n` +
-      `${itemsText}\n\n` +
-      `Frais de livraison (${match.nom_zone}) : ${match.frais.toLocaleString("fr-FR")} FCFA\n` +
-      `Total général : ${totalFinal.toLocaleString("fr-FR")} FCFA\n\n` +
-      `Confirmez-vous votre commande ? Répondez OUI pour confirmer.`;
-
+    const reply = buildSummaryWithDelivery(
+      meta.commande_draft,
+      match.nom_zone,
+      match.frais
+    );
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
-  // Annulation si draft en attente sans état particulier
+  // ── ÉTAT : attente_type_livraison — livraison ou sur place ? ──
+  if (meta.etat === "attente_type_livraison" && meta.commande_draft) {
+    const lower = message.toLowerCase();
+    const wantsDelivery = /livr|chez moi|à domicile|a domicile|domicile/.test(lower);
+    const wantsPickup =
+      /sur place|à emporter|a emporter|emporter|récup|recup|venir chercher|je passe|je viens/.test(lower);
+
+    if (wantsPickup) {
+      meta.etat = "attente_confirmation";
+      meta.sur_place = true;
+      delete meta.zone_draft;
+      await saveMeta(conversation.id, meta);
+
+      const reply = buildSummaryNoDelivery(meta.commande_draft);
+      await saveExchange(conversation.id, meta, message, reply);
+      await waSendMessage(customer_phone, reply, restaurant_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (wantsDelivery) {
+      meta.etat = "attente_quartier";
+      meta.sur_place = false;
+      await saveMeta(conversation.id, meta);
+
+      const reply = "Dans quel quartier souhaitez-vous être livré ?";
+      await saveExchange(conversation.id, meta, message, reply);
+      await waSendMessage(customer_phone, reply, restaurant_id);
+      return NextResponse.json({ ok: true });
+    }
+
+    // Message ambigu — reprompt
+    const reply =
+      "Souhaitez-vous être *livré* à domicile ou récupérer votre commande *sur place* ?";
+    await saveExchange(conversation.id, meta, message, reply);
+    await waSendMessage(customer_phone, reply, restaurant_id);
+    return NextResponse.json({ ok: true });
+  }
+
+  // ==================================================================
+  // PAS D'ÉTAT ACTIF — Classification libre
+  // ==================================================================
+
+  // Annulation d'un draft orphelin
   if (meta.commande_draft && isRejection(message)) {
     await clearDraft(conversation.id, meta);
     const reply =
-      "Pas de souci, votre commande a été annulée. N'hésitez pas à repasser commande quand vous voulez.";
+      "Commande annulée. N'hésitez pas à recommander quand vous voulez !";
     await saveExchange(conversation.id, meta, message, reply);
     await waSendMessage(customer_phone, reply, restaurant_id);
     return NextResponse.json({ ok: true });
   }
 
-  // ----- FAQ : correspondance directe par mots-clés (sans appel IA) -----
+  // Demande de menu explicite
+  if (/\bmenu\b|que proposez|votre carte|vos plats|qu['']avez.vous|qu['']est.ce que vous avez/i.test(message)) {
+    const reply = formatMenuFull(availableItems);
+    await saveExchange(conversation.id, meta, message, reply);
+    await waSendMessage(customer_phone, reply, restaurant_id);
+    return NextResponse.json({ ok: true });
+  }
 
-  const { data: faqKwItems } = await supabaseAdmin
+  // FAQ par mots-clés configurés (zéro IA)
+  const { data: faqItems } = await supabaseAdmin
     .from("faq_items")
     .select("answer, keywords")
     .eq("restaurant_id", restaurant_id)
     .eq("is_published", true);
 
   const msgLower = message.toLowerCase();
-  const faqKwMatch = (faqKwItems ?? []).find((faq) => {
+  const faqKwMatch = (faqItems ?? []).find((faq) => {
     const kws = (faq.keywords as string[] | null) ?? [];
     return (
       kws.length > 0 &&
@@ -324,10 +434,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ----- Classifier le message -----
-
-  const menuText = menuItems
-    .map((m) => `${m.name} (${m.category}) — ${m.price} FCFA`)
+  // Classification IA (Haiku — rapide et économique)
+  const menuText = availableItems
+    .map((m) => `${m.name} — ${m.price} FCFA`)
     .join(", ");
 
   const intent = await classifyMessage(message, {
@@ -339,6 +448,47 @@ export async function POST(req: NextRequest) {
   let reply: string;
 
   switch (intent) {
+    case "commande": {
+      const result = await extractOrder(message, availableItems);
+
+      if (!result.items || result.items.length === 0) {
+        // L'IA n'a pas trouvé de plats valides — afficher le menu
+        reply =
+          result.message_confirmation +
+          "\n\n" +
+          formatMenuFull(availableItems);
+        break;
+      }
+
+      const draft: OrderDraft = {
+        items: result.items,
+        total: computeTotal(result.items),
+      };
+
+      meta.commande_draft = draft;
+
+      if (zones.length > 0) {
+        // Demander livraison ou sur place (étape 2)
+        meta.etat = "attente_type_livraison";
+        await saveMeta(conversation.id, meta);
+
+        const itemsText = draft.items
+          .map((it) => `- ${it.quantite}x ${it.nom}`)
+          .join("\n");
+
+        reply =
+          `J'ai bien noté :\n${itemsText}\n\n` +
+          `Souhaitez-vous être *livré* à domicile ou récupérer sur *place* ?`;
+      } else {
+        // Pas de livraison configurée → résumé direct sur place
+        meta.etat = "attente_confirmation";
+        meta.sur_place = true;
+        await saveMeta(conversation.id, meta);
+        reply = buildSummaryNoDelivery(draft);
+      }
+      break;
+    }
+
     case "faq":
       reply = await handleFaq(
         message,
@@ -346,24 +496,10 @@ export async function POST(req: NextRequest) {
         restaurant.name,
         horaires,
         restaurant.address ?? "",
-        menuItems
+        availableItems,
+        restaurant.ton_reponse
       );
       break;
-
-    case "commande": {
-      const extracted = await handleCommande(
-        message,
-        menuItems,
-        restaurant_id,
-        conversation.id,
-        customer_name,
-        customer_phone,
-        meta
-      );
-      await saveExchange(conversation.id, meta, message, extracted.reply);
-      await waSendMessage(customer_phone, extracted.reply, restaurant_id);
-      return NextResponse.json({ ok: true });
-    }
 
     case "hors_cadre":
       reply = await handleHorsCadre(
@@ -376,152 +512,113 @@ export async function POST(req: NextRequest) {
       break;
 
     default:
-      reply = formatMenu(menuItems, restaurant.name);
+      reply = formatMenuFull(availableItems);
   }
 
   await saveExchange(conversation.id, meta, message, reply);
   await waSendMessage(customer_phone, reply, restaurant_id);
-
   return NextResponse.json({ ok: true });
 }
 
-// ------------------------------------------------------------------
-// Handlers par intention
-// ------------------------------------------------------------------
+// ==================================================================
+// RÉSUMÉS — 100 % TypeScript, zéro IA, zéro approximation
+// ==================================================================
 
-async function handleFaq(
-  message: string,
-  restaurantId: string,
-  restaurantName: string,
-  horaires: string,
-  address: string,
-  menuItems: MenuItem[]
-): Promise<string> {
-  const { data: faqs } = await supabaseAdmin
-    .from("faq_items")
-    .select("question, answer")
-    .eq("restaurant_id", restaurantId)
-    .eq("is_published", true);
-
-  const menuFormatted = formatMenu(menuItems, restaurantName);
-
-  if (faqs && faqs.length > 0) {
-    const faqText = faqs
-      .map((f) => `Q: ${f.question}\nR: ${f.answer}`)
-      .join("\n\n");
-
-    const response = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 512,
-      system: `Tu es l'assistant du restaurant "${restaurantName}" à Bamako.
-Réponds à la question du client en te basant sur ces informations :
-
-FAQ :
-${faqText}
-
-Menu complet :
-${menuFormatted}
-
-Infos :
-- Adresse : ${address || "Non renseignée"}
-- Horaires : ${horaires}
-
-Réponds en français, de manière chaleureuse et concise. Si le client demande le menu, affiche-le formaté avec les prix en FCFA.`,
-      messages: [{ role: "user", content: message }],
-    });
-
-    return response.content[0].type === "text"
-      ? response.content[0].text
-      : "Désolé, je n'ai pas pu répondre à votre question.";
-  }
-
-  const response = await anthropic.messages.create({
-    model: "claude-haiku-4-5",
-    max_tokens: 512,
-    system: `Tu es l'assistant du restaurant "${restaurantName}" à Bamako.
-Menu complet :
-${menuFormatted}
-
-Infos disponibles :
-- Adresse : ${address || "Non renseignée"}
-- Horaires : ${horaires}
-
-Réponds à la question du client en français, de manière chaleureuse et concise. Si le client demande le menu, affiche-le formaté avec les prix en FCFA.`,
-    messages: [{ role: "user", content: message }],
-  });
-
-  return response.content[0].type === "text"
-    ? response.content[0].text
-    : "Désolé, je n'ai pas pu répondre à votre question. Appelez-nous directement !";
+function computeTotal(items: OrderItem[]): number {
+  return items.reduce((sum, it) => sum + it.prix_unitaire * it.quantite, 0);
 }
 
-async function handleCommande(
-  message: string,
-  menuItems: MenuItem[],
-  restaurantId: string,
-  conversationId: string,
-  customerName: string,
-  customerPhone: string,
-  meta: ConversationMeta
-): Promise<{ reply: string }> {
-  const result = await extractOrder(message, menuItems);
-
-  if (!result.items) {
-    return { reply: result.message_confirmation };
-  }
-
-  meta.commande_draft = result;
-
-  // Vérifier si le restaurant a des zones de livraison
-  const { data: zones } = await supabaseAdmin
-    .from("zones_livraison")
-    .select("id")
-    .eq("restaurant_id", restaurantId)
-    .eq("actif", true)
-    .limit(1);
-
-  const hasDelivery = zones && zones.length > 0;
-
-  if (hasDelivery) {
-    // État B — demander le quartier
-    meta.attente_quartier = true;
-    await saveMeta(conversationId, meta);
-
-    const reply =
-      `${result.message_confirmation}\n\n` +
-      `Dans quel quartier souhaitez-vous être livré ?`;
-    return { reply };
-  }
-
-  // Pas de livraison — résumé + OUI directement (récupération sur place)
-  meta.attente_confirmation = true;
-  meta.sur_place = true;
-  await saveMeta(conversationId, meta);
-
-  const items = (result.items as DraftItem[] | null) ?? [];
-  const itemsText = items
+function buildSummaryWithDelivery(
+  draft: OrderDraft,
+  nomZone: string,
+  frais: number
+): string {
+  const lines = draft.items
     .map(
       (it) =>
         `- ${it.quantite}x ${it.nom} : ${(it.quantite * it.prix_unitaire).toLocaleString("fr-FR")} FCFA`
     )
     .join("\n");
 
-  const reply =
-    `Voici votre commande (récupération sur place) :\n\n` +
-    `${itemsText}\n\n` +
-    `Total : ${result.total.toLocaleString("fr-FR")} FCFA\n\n` +
-    `Confirmez-vous votre commande ? Répondez OUI pour confirmer.`;
+  const sousTotal = draft.total;
+  const total = sousTotal + frais;
 
-  return { reply };
+  return (
+    `Voici votre commande :\n\n` +
+    `${lines}\n\n` +
+    `Sous-total : ${sousTotal.toLocaleString("fr-FR")} FCFA\n` +
+    `Livraison ${nomZone} : ${frais.toLocaleString("fr-FR")} FCFA\n` +
+    `──────────────────\n` +
+    `TOTAL : ${total.toLocaleString("fr-FR")} FCFA\n\n` +
+    `Paiement en espèces à la livraison.\n` +
+    `Confirmez-vous ? Répondez *OUI* pour valider.`
+  );
 }
 
-async function createOrder(
-  draft: ExtractedOrder,
+function buildSummaryNoDelivery(draft: OrderDraft): string {
+  const lines = draft.items
+    .map(
+      (it) =>
+        `- ${it.quantite}x ${it.nom} : ${(it.quantite * it.prix_unitaire).toLocaleString("fr-FR")} FCFA`
+    )
+    .join("\n");
+
+  const total = draft.total;
+
+  return (
+    `Voici votre commande :\n\n` +
+    `${lines}\n\n` +
+    `──────────────────\n` +
+    `TOTAL : ${total.toLocaleString("fr-FR")} FCFA\n\n` +
+    `Paiement sur place.\n` +
+    `Confirmez-vous ? Répondez *OUI* pour valider.`
+  );
+}
+
+// ==================================================================
+// MENU FORMATÉ — catégories en majuscules, prix exacts DB
+// ==================================================================
+
+function formatMenuFull(items: MenuItem[]): string {
+  if (!items.length) {
+    return "Notre menu est en cours de mise à jour. Revenez bientôt !";
+  }
+
+  const byCategory: Record<string, MenuItem[]> = {};
+  for (const item of items) {
+    const cat = (item.category ?? "Plats").toUpperCase();
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(item);
+  }
+
+  let text = "Voici notre menu :\n\n";
+  for (const [cat, catItems] of Object.entries(byCategory)) {
+    text += `${cat}\n`;
+    for (const item of catItems) {
+      text += `- ${item.name} — ${Number(item.price).toLocaleString("fr-FR")} FCFA\n`;
+    }
+    text += "\n";
+  }
+  text += "Que souhaitez-vous commander ?";
+  return text.trim();
+}
+
+// ==================================================================
+// CRÉATION DE COMMANDE
+// ==================================================================
+
+async function doCreateOrder(
+  draft: OrderDraft,
   restaurantId: string,
   conversationId: string,
   customerName: string,
   customerPhone: string,
-  delivery: { zone_livraison: string; frais_livraison: number; quartier_client: string } | null
+  delivery: {
+    zone_livraison: string;
+    frais_livraison: number;
+    quartier_client: string;
+  } | null,
+  surPlace: boolean
 ): Promise<string> {
   const fraisLivraison = delivery?.frais_livraison ?? 0;
   const totalFinal = draft.total + fraisLivraison;
@@ -533,7 +630,7 @@ async function createOrder(
     customer_phone: customerPhone,
     items: draft.items,
     total: totalFinal,
-    status: "pending",
+    status: "en_preparation",
     mode_paiement: "especes",
     frais_livraison: fraisLivraison,
     zone_livraison: delivery?.zone_livraison ?? null,
@@ -551,20 +648,76 @@ async function createOrder(
     `Nouvelle commande — ${totalFinal.toLocaleString("fr-FR")} FCFA — espèces — ${livraisonLabel}`
   );
 
-  if (delivery) {
+  if (surPlace) {
     return (
-      `Commande confirmée ! Notre livreur sera chez vous dans environ 30-45 minutes.\n` +
-      `Paiement en espèces à la livraison.\n\n` +
-      `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA`
+      `Commande confirmée ! Votre commande est en préparation.\n` +
+      `Vous pouvez passer la récupérer sous peu.\n\n` +
+      `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA\n\n` +
+      `Merci de votre confiance !`
     );
   }
 
   return (
-    `Commande confirmée ! Votre commande est en préparation.\n` +
-    `Vous pouvez passer la récupérer sous peu. Paiement sur place.\n\n` +
-    `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA`
+    `Commande confirmée ! Notre livreur sera chez vous dans 30 à 45 minutes.\n` +
+    `Paiement en espèces à la livraison.\n\n` +
+    `Total : ${totalFinal.toLocaleString("fr-FR")} FCFA\n\n` +
+    `Merci de votre confiance !`
   );
 }
+
+// ==================================================================
+// FAQ (Claude Haiku — uniquement pour les questions hors mots-clés)
+// ==================================================================
+
+async function handleFaq(
+  message: string,
+  restaurantId: string,
+  restaurantName: string,
+  horaires: string,
+  address: string,
+  menuItems: MenuItem[],
+  tonReponse?: string
+): Promise<string> {
+  const { data: faqs } = await supabaseAdmin
+    .from("faq_items")
+    .select("question, answer")
+    .eq("restaurant_id", restaurantId)
+    .eq("is_published", true);
+
+  const menuFormatted = formatMenuFull(menuItems);
+  const faqText =
+    faqs && faqs.length > 0
+      ? faqs.map((f) => `Q: ${f.question}\nR: ${f.answer}`).join("\n\n")
+      : "";
+  const tonInstruction = tonReponse
+    ? `\nTon de réponse à adopter : ${tonReponse}`
+    : "";
+
+  const system =
+    `Tu es l'assistant du restaurant "${restaurantName}".` +
+    `${tonInstruction}\n\n` +
+    `Réponds UNIQUEMENT à partir des informations ci-dessous — ne jamais inventer de plat, de prix, d'horaire ou d'adresse.\n\n` +
+    (faqText ? `FAQ :\n${faqText}\n\n` : "") +
+    `${menuFormatted}\n\n` +
+    `Adresse : ${address || "Non renseignée"}\n` +
+    `Horaires : ${horaires}\n\n` +
+    `Réponds en français, de manière concise et chaleureuse. Si l'information n'est pas dans ce contexte, dis-le honnêtement.`;
+
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 512,
+    system,
+    messages: [{ role: "user", content: message }],
+  });
+
+  return response.content[0].type === "text"
+    ? response.content[0].text
+    : "Désolé, je n'ai pas pu répondre à votre question. Appelez-nous directement !";
+}
+
+// ==================================================================
+// HORS CADRE — transfert au gérant
+// ==================================================================
 
 async function handleHorsCadre(
   restaurantId: string,
@@ -573,7 +726,10 @@ async function handleHorsCadre(
   customerPhone: string,
   message: string
 ): Promise<string> {
-  await supabaseAdmin.from("conversations").update({ status: "open" }).eq("id", conversationId);
+  await supabaseAdmin
+    .from("conversations")
+    .update({ status: "open" })
+    .eq("id", conversationId);
 
   const { data: resto } = await supabaseAdmin
     .from("restaurants")
@@ -582,12 +738,11 @@ async function handleHorsCadre(
     .single();
 
   if (resto?.phone) {
-    const managerMsg =
-      `Un client a besoin de vous !\n\n` +
-      `Numéro client : ${customerPhone}\n\n` +
-      `Dernier message : ${message}\n\n` +
-      `Répondez directement à ce numéro pour prendre en charge.`;
-    await waSendMessage(resto.phone, managerMsg, restaurantId);
+    await waSendMessage(
+      resto.phone as string,
+      `Un client a besoin de vous !\n\nNuméro client : ${customerPhone}\n\nMessage : ${message}\n\nRépondez directement à ce numéro.`,
+      restaurantId
+    );
   }
 
   await notifyManager(restaurantId, customerName, customerPhone, message);
@@ -595,33 +750,9 @@ async function handleHorsCadre(
   return "Je transmets votre message à notre équipe. Un membre de notre staff va vous répondre dans quelques minutes. Merci de votre patience.";
 }
 
-// ------------------------------------------------------------------
-// Utilitaires
-// ------------------------------------------------------------------
-
-function formatMenu(items: MenuItem[], restaurantName: string): string {
-  if (!items.length) {
-    return `Bonjour ! Bienvenue chez ${restaurantName}. Notre menu est en cours de mise à jour. Revenez bientôt !`;
-  }
-
-  const byCategory: Record<string, MenuItem[]> = {};
-  for (const item of items) {
-    const cat = item.category || "Plats";
-    if (!byCategory[cat]) byCategory[cat] = [];
-    byCategory[cat].push(item);
-  }
-
-  let text = `Bonjour ! Voici notre menu :\n\n`;
-  for (const [cat, catItems] of Object.entries(byCategory)) {
-    text += `*${cat}*\n`;
-    for (const item of catItems) {
-      text += `- ${item.name} : ${Number(item.price).toLocaleString("fr-FR")} FCFA\n`;
-    }
-    text += "\n";
-  }
-  text += "Pour commander, dites-nous simplement ce que vous souhaitez !";
-  return text;
-}
+// ==================================================================
+// UTILITAIRES
+// ==================================================================
 
 function findDeliveryZone(
   quartier: string,
@@ -629,32 +760,36 @@ function findDeliveryZone(
 ): DeliveryZone | null {
   const input = quartier.toLowerCase().trim();
   for (const zone of zones) {
-    for (const q of zone.quartiers) {
-      if (input.includes(q.toLowerCase()) || q.toLowerCase().includes(input)) {
-        return zone;
-      }
-    }
+    const zoneMatch =
+      zone.nom_zone.toLowerCase().includes(input) ||
+      input.includes(zone.nom_zone.toLowerCase());
+    const quartierMatch = zone.quartiers.some(
+      (q) => input.includes(q.toLowerCase()) || q.toLowerCase().includes(input)
+    );
+    if (zoneMatch || quartierMatch) return zone;
   }
   return null;
 }
 
 function isConfirmation(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
-  const keywords = [
-    "oui", "ok", "d'accord", "daccord", "je confirme", "confirme",
-    "c'est bon", "cest bon", "go", "parfait", "valide", "je valide",
-    "yes", "awa",
-  ];
-  return keywords.some((k) => lower.includes(k));
+  return /\b(oui|ok|d'?accord|daccord|confirme?|c'?est bon|cest bon|go|parfait|valide?|yes|awa|ouais)\b/.test(
+    lower
+  );
 }
 
 function isRejection(msg: string): boolean {
   const lower = msg.toLowerCase().trim();
-  const keywords = [
-    "non", "annule", "annuler", "j'annule", "pas ça", "laisse tomber",
-    "stop", "arrête", "ayi",
-  ];
-  return keywords.some((k) => lower.includes(k));
+  return /\b(non|annule|annuler|j'?annule|pas ça|laisse tomber|stop|arr[eê]te|ayi|cancel|non merci)\b/.test(
+    lower
+  );
+}
+
+function containsMenuItem(message: string, menuItems: MenuItem[]): boolean {
+  const msgLower = message.toLowerCase();
+  return menuItems.some(
+    (item) => item.name.length > 3 && msgLower.includes(item.name.toLowerCase())
+  );
 }
 
 async function saveExchange(
@@ -669,7 +804,7 @@ async function saveExchange(
     { role: "client", text: clientMsg, at: now },
     { role: "bot", text: botReply, at: now }
   );
-  if (historique.length > 50) historique.splice(0, historique.length - 50);
+  if (historique.length > 60) historique.splice(0, historique.length - 60);
   meta.historique = historique;
   await supabaseAdmin
     .from("conversations")
@@ -686,24 +821,29 @@ async function saveMeta(conversationId: string, meta: ConversationMeta) {
 
 async function clearDraft(conversationId: string, meta: ConversationMeta) {
   delete meta.commande_draft;
-  delete meta.attente_quartier;
-  delete meta.attente_confirmation;
+  delete meta.etat;
   delete meta.zone_draft;
   delete meta.sur_place;
+  delete meta.attente_quartier;
+  delete meta.attente_confirmation;
   await saveMeta(conversationId, meta);
 }
 
-// ------------------------------------------------------------------
-// Horaires (fuseau Afrique/Bamako = UTC+0)
-// ------------------------------------------------------------------
+// ==================================================================
+// HORAIRES (UTC+0 = Bamako)
+// ==================================================================
 
-const DAYS_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const DAYS_FR = [
+  "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+];
 
 function slotOpenTime(slot: string): string {
   return slot.split("-")[0].trim();
 }
 
-function parseSlotMinutes(slot: string): { openMin: number; closeMin: number } | null {
+function parseSlotMinutes(
+  slot: string
+): { openMin: number; closeMin: number } | null {
   const parts = slot.split("-");
   if (parts.length !== 2) return null;
   const [oh, om] = parts[0].trim().split(":").map(Number);
@@ -713,7 +853,8 @@ function parseSlotMinutes(slot: string): { openMin: number; closeMin: number } |
 }
 
 function checkOpeningHours(
-  openingHours: Record<string, string> | null
+  openingHours: Record<string, string> | null,
+  restaurantName: string
 ): { open: true } | { open: false; closedMessage: string } {
   if (!openingHours || Object.keys(openingHours).length === 0) {
     return { open: true };
@@ -734,7 +875,10 @@ function checkOpeningHours(
       if (currentMinutes < parsed.openMin) {
         return {
           open: false,
-          closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons aujourd'hui à ${slotOpenTime(todaySlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.`,
+          closedMessage:
+            `Bonjour ! ${restaurantName} est actuellement fermé. ` +
+            `Nous ouvrons aujourd'hui à ${slotOpenTime(todaySlot)}. ` +
+            `Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès l'ouverture.`,
         };
       }
     }
@@ -747,7 +891,10 @@ function checkOpeningHours(
       const dayLabel = i === 1 ? "demain" : nextDay;
       return {
         open: false,
-        closedMessage: `Bonjour ! Nous sommes actuellement fermés. Nous ouvrons ${dayLabel} à ${slotOpenTime(nextSlot)}. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.`,
+        closedMessage:
+          `Bonjour ! ${restaurantName} est actuellement fermé. ` +
+          `Nous ouvrons ${dayLabel} à ${slotOpenTime(nextSlot)}. ` +
+          `Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès l'ouverture.`,
       };
     }
   }
@@ -755,9 +902,14 @@ function checkOpeningHours(
   return {
     open: false,
     closedMessage:
-      "Bonjour ! Nous sommes actuellement fermés. Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.",
+      `Bonjour ! ${restaurantName} est actuellement fermé. ` +
+      `Vous pouvez déjà nous envoyer votre commande et nous la traiterons dès notre ouverture.`,
   };
 }
+
+// ==================================================================
+// NOTIFICATION GÉRANT
+// ==================================================================
 
 async function notifyManager(
   restaurantId: string,
