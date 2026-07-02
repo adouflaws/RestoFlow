@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, X as XIcon, ArrowLeft, CreditCard, AlertCircle, Loader } from "lucide-react";
-import { SH } from "@/lib/ds";
 
 const G   = "#1a4d2e";
 const GL  = "#16a34a";
@@ -215,7 +214,7 @@ export default function AbonnementPage() {
                 backgroundColor: plan.popular ? G : "#fff",
                 position: "relative",
                 display: "flex", flexDirection: "column",
-                boxShadow: plan.popular ? "0 20px 48px rgba(26,77,46,.18)" : SH.sm,
+                boxShadow: plan.popular ? "0 20px 48px rgba(26,77,46,.18)" : "0px 1px 1px rgba(0,0,0,0.03), 0px 3px 6px rgba(18,42,66,0.02)",
               }}
             >
               {plan.popular && (

@@ -98,7 +98,7 @@ export default function LandingPage() {
 
     (async () => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-      const gsap = (await import("gsap")).default;
+      const { gsap } = await import("gsap");
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
       gsap.registerPlugin(ScrollTrigger);
 
